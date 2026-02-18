@@ -27,7 +27,7 @@ CTM_ATTENTION_DEFAULT = {
 
 ATT_CONFIG = {
     'attention_amount': 3,
-    'dropout': 0.2,
+    'dropout': DR,
     'final_dim': 76, #each attention output is projected into a final dim so shape is b x arbitrary_seq x final dim
     'use_dense': True,
 
@@ -56,6 +56,27 @@ ATT_CONFIG = {
         #skipping sentence reconstruction attention module
     ]
 
+}
+
+VOCAB_ATTENTION_EMBEDDING = 16
+
+SENTENCE_ATTENTION = {
+    'attention_amount': 1,
+    'dropout': DR,
+    'final_dim': 42, #latent before projection into full vocab size for smaller nn.embedding which matches the embed dim below
+    'use_dense': True, 
+
+    'attention_configs':[
+        {
+            'name': 'sentence_recon',
+            'embed_dim': VOCAB_ATTENTION_EMBEDDING, #further compressed embedding size of vocab
+            'kdim': 2 * PRINCIPAL_COMPONENTS,
+            'vdim': 2 * PRINCIPAL_COMPONENTS,
+            'num_heads': 1,
+            'pattern': 'cross-attention'
+
+        }
+    ]
 }
 
 #config 
@@ -135,7 +156,10 @@ V1_CONFIG_DF = {
 
     'semantic_components': PRINCIPAL_COMPONENTS, #number of principle components to use for semantic space
     'attention_heads': ATT_CONFIG,
-    'latent_world_size': 64
+    'latent_world_size': 64,
+
+    'sentence_recon_attention': SENTENCE_ATTENTION,
+    'vocab_attn_embedding': VOCAB_ATTENTION_EMBEDDING
 }
 
 
@@ -154,9 +178,9 @@ class NWMv1(nn.Module):
         self.env_state = None
         self.img_state = None
         self.semantic_state = None
-        self.window_count = 0
-        self.dream_count = 0
-        self.state_t = None
+        self.window_count = 0.0
+        self.dream_count = 0.0
+        self.state_t = None #actual state for policy
 
         self._initialise_config(config, **kwargs)
         self._initialise_network()
@@ -222,6 +246,7 @@ class NWMv1(nn.Module):
         self._build_motor_action()
         self._build_motor_world()
         self._compute_semantic_subspace()
+        self._build_sentence_module()
 
     def _compute_semantic_subspace(self):
         #compute svd decomposition of vocabulary embeddings to find principal semantic axes
@@ -322,6 +347,25 @@ class NWMv1(nn.Module):
                 ),
             nn.LeakyReLU(negative_slope=0.2)
             )
+    
+    def _build_sentence_module(self):
+        self.sentence_attention = MMHA(
+            config=self.config['sentence_recon_attention']
+        )
+
+        self.project_to_vocab = nn.LazyLinear(out_features=len(self.vocab_list), bias=True)
+
+        self.sentence_embedding = nn.Embedding(
+            num_embeddings=len(self.vocab_list), #make number of embeddings the vocab size
+            embedding_dim=self.config['vocab_attn_embedding'],
+            )
+        
+        #learnable initialiser for first query input
+        self.register_parameter('pre_query_sentence', nn.Parameter(torch.zeros(1 , self.config['vocab_attn_embedding'])))
+
+    def _init_pre_query(self, batch_size, device):
+        pre_query = self.pre_query_sentence.unsqueeze(0).expand(batch_size, -1, -1).to(device).clone()
+        return pre_query
 
     def init_pre_states(self, batch_size, device):
         #initialise all state buffers if they don't exist
@@ -340,12 +384,24 @@ class NWMv1(nn.Module):
 
         return env_state
 
-    #assume state and count are model.env_state or model.img_state etc, they are self variables
-    def get_final_state(self, state, count):
-        final_state = state / count 
-        state, count = None, 0.0 #reset count and accumulated state, even if its dreamed
-        return final_state
+    #helper function to handle logistics for getting final reasoning/sentence reconstruction
+    #no resetting of accumulation because attention mods need that
+    def get_final_pre_sensory_states(self, is_dream=False):
+        #use average window as final env state
+        pre_final_env_state = self.accum_env_state 
 
+        if is_dream:
+            final_env_state = pre_final_env_state / self.current_dream_count
+
+        else:
+            final_env_state = pre_final_env_state / self.current_window_count
+
+        #get final semantic state which is a matrix, not a list [mu, var]
+        final_semantics = self.accum_semantic_state #shape b x thought_steps x 2*k
+        img_state = self.current_img_state #dont need to use inplace current state
+
+        final_pre_state = [final_env_state, img_state, final_semantics]
+        return final_pre_state
 
     def update_input_activity(self, state, s_type, count_dream=False):
         if s_type not in self.s_types:
@@ -369,7 +425,7 @@ class NWMv1(nn.Module):
         
         #if semantic state
         elif s_type == self.s_types[-1]:
-            self.semantic_state += state #accumulate
+            self.semantic_state += state #accumulate vector
 
     def prepare_sensory_inputs(self, env_state, semantic_state=None, is_dreaming=False):
         b_size = env_state.shape[0] #b x 1 x state dim
@@ -394,7 +450,7 @@ class NWMv1(nn.Module):
         return [env_input, img_input, semantic_input]
 
     #assume state_inputs is a list; assume shapes handled externally
-    def sensory_attention(self, state_inputs):
+    def sensory_attention(self, state_inputs, final_reasoning=False, is_dream=False):
         #assumes accumulated states exist via _ensure_states_initialised
         env_state = state_inputs[0] #b x 1 x state_dim
         img_state = state_inputs[1] #b x 1 x state_dim
@@ -413,6 +469,16 @@ class NWMv1(nn.Module):
         )
 
         self.state_t = attended_output
+
+        if final_reasoning:
+            #can safely reset counts and accumulated states
+            if is_dream:
+                self.dream_count = 0.0
+            else:
+                self.window_count = 0.0
+            
+            self.env_state = None
+            self.semantic_state = None #resets accumulation
         
         return attended_output #pass as input features into ctm attention, which treats this as KV for ctm attention
     
@@ -481,6 +547,7 @@ class NWMv1(nn.Module):
 
         return coeffs, log_prob
     
+    #all still differentiable
     def decode_vocab_ids(self, coefficients, return_confidences=True):
         #coefficients shape: batch x k x thought_steps
         #reconstruct embeddings from principal components
@@ -512,6 +579,54 @@ class NWMv1(nn.Module):
         
         return word_ids
     
+    #semantic state is list [mu, var], confidences is shape b x t x 1, current_query is b x 1 x vocab_attn_embedding
+    def decode_sentence(self, semantic_state, confidences, current_query=None):
+        thought_steps = confidences.shape[-1] #shape b x t
+
+        num_heads = self.config['sentence_recon_attention']['attention_configs'][0]['num_heads']
+
+        #prepare queries, keys, values
+        mus = semantic_state[0].transpose(1, 2) #b x t x k
+        vars = semantic_state[1].transpose(1, 2) #b x t x k
+        semantic_state = torch.cat([mus, vars], dim=-1) #b x t x 2*k
+        confidences = confidences.unsqueeze(1) #b x 1 x t
+        confidences = confidences.repeat(num_heads, 1, 1) #for attention mask must be shape (b*num_heads) x trgt seq x src seq
+
+        if current_query is None:
+            query = [self._init_pre_query(mus.shape[0], mus.device)]
+        else:
+            query = [current_query] #b x 1 x vocab atten dim
+
+        keyvalues = [semantic_state]
+
+        #store predicted vocab ids in list
+        sentence_ids = []
+
+        for t in range(thought_steps):
+            attended_output = self.sentence_attention(
+                queries=query,
+                keys=keyvalues,
+                values=keyvalues,
+                att_mask=confidences #use confidence as attention mask to broadcast additive confidence-based bias
+            )
+
+            #project to vocab size
+            vocab_logits = self.project_to_vocab(attended_output)
+            vocab_logits = F.silu(vocab_logits)
+            vocab_id = vocab_logits.argmax(dim=-1) #b x 1; #get highest attended vocab logit
+
+            sentence_ids.append(vocab_id) #append to sentence
+            
+            #get vocab id to embedding
+            attention_embedding = self.sentence_embedding(vocab_id) #b x vocba atten dim
+            query = [attention_embedding.unsqueeze(1)] #replace query with predicted word
+        
+        sentence_ids = torch.stack(sentence_ids, dim=-1) #stack across thought steps as tensor
+
+        return sentence_ids
+
+    
+    #used for both decoding semantics and constructing sentence
     def construct_sentence(self, word_ids):
         #only used during experience replay and inference where batch dim = 1
         word_ids = word_ids.squeeze(0) #thought_steps
@@ -596,17 +711,21 @@ class NWMv1(nn.Module):
     @property
     def vocab_size(self):
         return len(self.vocab_list)
+    
+    @property 
+    def current_state(self):
+        return self.state_t
 
     @property
-    def current_env_state(self):
+    def accum_env_state(self):
         return self.env_state #accumulated state
     
     @property 
     def current_img_state(self):
-        return self.img_state #accumulated state
+        return self.img_state #current state
 
     @property 
-    def current_semantic_state(self):
+    def accum_semantic_state(self):
         return self.semantic_state #accumulated state
 
     @property
@@ -651,11 +770,18 @@ class NWMv1(nn.Module):
         #svd buffers (not trainable but count for completeness)
         buffer_params = self.vocab_mean.numel() + self.Vt_k.numel() + self.S_k.numel() + self.vocab_centered.numel()
         
+        #sentence reconstruction params
+        sentence_att_params = sum(p.numel() for p in self.sentence_attention.parameters())
+        vocab_proj_params = sum(p.numel() for p in self.project_to_vocab.parameters())
+        vocab_query_embed_params = sum(p.numel() for p in self.sentence_embedding.parameters())
+        pre_query_params = self.pre_query_sentence.numel()
+
         #total trainable params
         total_trainable = (feature_params + attention_params + ctm_params + 
                         action_prop_params + coef_proj_params + var_proj_params +
                         world_prop_params + mdn_mu_params + mdn_sig_params + mdn_pi_params + next_state_projector_params +
-                        pre_env_params + pre_semantic_params)
+                        pre_env_params + pre_semantic_params + sentence_att_params + vocab_proj_params + vocab_query_embed_params +
+                        pre_query_params)
         
         #total including frozen
         total_all = total_trainable + vocab_params + buffer_params
@@ -674,6 +800,10 @@ class NWMv1(nn.Module):
         print(f"Pre-semantic state params    : {pre_semantic_params:,}")
         print(f"Vocab embedding (frozen)     : {vocab_params:,}")
         print(f"SVD buffers (frozen)         : {buffer_params:,}")
+        print(f"Sentence Attention parameters: {sentence_att_params:,}")
+        print(f"Vocab Proj parameters        : {vocab_proj_params:,}")
+        print(f"Vocab query embedding params : {vocab_query_embed_params:,}")
+        print(f"Pre-Query parameters         : {pre_query_params:,}")
         print('-----------------------------------------------------------')
         print(f"Total (all parameters)       : {total_all:,}")
         print('-----------------------------------------------------------')

@@ -110,7 +110,9 @@ class MMHA(nn.Module):
                 embed_dim=embed_dim, #qkv expected to have same last dim, but can have variable sequence dim
                 num_heads=num_heads,
                 dropout=self.dr,
-                batch_first=True #batch dim expected to come first
+                batch_first=True, #batch dim expected to come first
+                kdim=config.get('kdim', None),
+                vdim=config.get('vdim', None)
             )
 
             self.attention_heads.append(attention_head)
@@ -128,7 +130,7 @@ class MMHA(nn.Module):
     #expected input shape batch x sequence length x feature dim, where sequence length can vary
     #but feature dim must be the same
     #if input queries do not have a sequence dim (sequence dim <= 1 ) then has_seq should be false
-    def forward(self, queries, keys, values):
+    def forward(self, queries, keys, values, att_mask=None):
         att_outputs = []
         
         for i in range(self.attention_amount):
@@ -136,7 +138,11 @@ class MMHA(nn.Module):
                 query=queries[i],
                 key=keys[i], 
                 value=values[i],
-                need_weights=False  # skip weights for speed unless debugging
+                need_weights=False, #skip weights for speed unless debugging
+                #For a float mask, the mask values will be added to the attention weight - pytorch documentation
+                #so use confidence at each thought step to bias attention weights on
+                #confident semantics
+                attn_mask=att_mask if att_mask is not None else None#assume this is the confidence in shape b x thought_steps x 1, 
             )
             
             #use dense if initialised

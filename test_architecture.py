@@ -177,57 +177,143 @@ vocab_embedding, _ = load_vocab_embedding(vocab_p, device, normalise=False)
 
 world_model = NWMv1(config=V1_CONFIG_DF, vocab_list=vocab_list, vocab_embedding=vocab_embedding)
 
-sample = train_tensor[0, : ,:] #shape channels x timepoints
-windows = segment_eeg_tensor(sample, window_size=WINDOW_SIZE)
-window = windows[0].unsqueeze(0) #add batch dim b x chans x segment_length
 
-#recurrent variables for model
-env_state = None #kinda redundant to put here but just including it anyways, because this is the only variable on an initial forward pass that 'exists'
+#-------------------
+#SINGLE FORWARD PASS TEST
+#-------------------
+# sample = train_tensor[0, : ,:] #shape channels x timepoints
+# windows = segment_eeg_tensor(sample, window_size=WINDOW_SIZE)
+# window = windows[0].unsqueeze(0) #add batch dim b x chans x segment_length
+
+# #recurrent variables for model
+# env_state = None #kinda redundant to put here but just including it anyways, because this is the only variable on an initial forward pass that 'exists'
+# cognitive_state = None 
+# action_state = None 
+# world_state = None 
+# semantic_state = None 
+
+# env_state = world_model.extract_features(window=window)
+# print(f"env_state shape: {env_state.shape}")
+
+
+# #prestate is a list with elements [env_input, img_input, semantic_input]
+# pre_state = world_model.prepare_sensory_inputs(
+#     env_state=env_state, semantic_state=semantic_state, is_dreaming=False 
+#     )
+
+# print(f"pre state shapes")
+# print(f"env state: {pre_state[0].shape} | img_state {pre_state[1].shape} | semantic state: {pre_state[2].shape}")
+
+# state_t = world_model.sensory_attention(state_inputs=pre_state)
+# print(f"attended state t shape: {state_t.shape}")
+
+# #pass state_t as list so its compatible with the mmha mod
+# thinking_signals, cognitive_state = world_model.think(kv=[state_t], cognitive_states=cognitive_state)
+# print(f"thinking signals shape: {thinking_signals.shape}")
+
+# #first output path - main action
+# semantic_state, action_state = world_model.propagate_action(
+#     thinking_signals=thinking_signals, motor_state=action_state, return_prop=False
+#     )
+
+# print(f"mu shape: {semantic_state[0].shape} | var shape: {semantic_state[1].shape}")
+
+# #deterministic decoding 
+# det_action = semantic_state[0] #mu 
+# det_ids, det_confs, det_avg_conf = world_model.decode_vocab_ids(coefficients=det_action, return_confidences=True)
+# det_sentence = world_model.construct_sentence(det_ids)
+# print(f"det sentence: {det_sentence} | confidence {det_avg_conf.squeeze(0).item():.3f}")
+# #samped
+# sam_actions, log_prob = world_model.sample_action(semantic_state=semantic_state)
+# sam_ids, sam_confs, sam_avg_conf = world_model.decode_vocab_ids(coefficients=sam_actions, return_confidences=True)
+# sam_sentence = world_model.construct_sentence(sam_ids)
+# print(f"sam sentence: {sam_sentence} | confidence {sam_avg_conf.squeeze(0).item():.3f}")
+
+# #next state pred - dream
+# next_state, mdn_mu, mdn_ls, mdn_pi, world_state = world_model.predict_next_state(thinking_signals=thinking_signals, world_state=world_state, temp=1.0)
+# print(f"img state pred shape: {next_state.shape} | mdn_mu: {mdn_mu.shape} | mdn_log_sig: {mdn_ls.shape} | mdn_pi: {mdn_pi.shape}")
+#-------------------
+#-------------------
+
+
+#-------------------
+#SEUQNTIAL FORWARD PASS TEST
+#-------------------
+sample = train_tensor[1, :, :] #shape chans x full_sequence_elngth
+windows = segment_eeg_tensor(sample, window_size=WINDOW_SIZE) #list of chans x segment_length, each element is the window in order
+
+
+#recurrent states
+#sensory inputs
+env_state = None #stores only the current env, pre init and accumulation are separate variables that use this
+semantic_state = None #a list input of [mu, var] for action, where mu and var are matrices
+
+#hidden states
 cognitive_state = None 
-action_state = None 
-world_state = None 
-semantic_state = None 
+motor_action = None 
+motor_world = None 
 
-env_state = world_model.extract_features(window=window)
-print(f"env_state shape: {env_state.shape}")
+with torch.no_grad():
+    #process windows
+    for i, window in enumerate(windows):
+        window = window.unsqueeze(0) #add batch dim = 1
+        env_state = world_model.extract_features(window=window)
+        pre_state = world_model.prepare_sensory_inputs(env_state=env_state, semantic_state=semantic_state, is_dreaming=False)
+        state_t = world_model.sensory_attention(state_inputs=pre_state)
+        #remember: pass state t as a list
+        thinking_signals, cognitive_state = world_model.think(kv=[state_t], cognitive_states=cognitive_state)
+        semantic_state, motor_action = world_model.propagate_action(
+            thinking_signals=thinking_signals, motor_state=motor_action, return_prop=False
+        )
 
+        #decoding paths - semantic accumulation (just using deterministic output for now)
+        det_action = semantic_state[0]
+        det_ids, det_confs, det_avg_conf = world_model.decode_vocab_ids(coefficients=det_action, return_confidences=True)
+        det_semantics = world_model.construct_sentence(word_ids=det_ids)
+        print(f"Accumulated semantics: {det_semantics} | conf: {det_avg_conf.squeeze(0).item():.5f}")
 
-#prestate is a list with elements [env_input, img_input, semantic_input]
-pre_state = world_model.prepare_sensory_inputs(
-    env_state=env_state, semantic_state=semantic_state, is_dreaming=False 
+        #if not on final window, predict next state
+        if i < len(windows) - 1:
+            next_env_state, mdn_mu, mdn_ls, mdn_pi, motor_world = world_model.predict_next_state(
+                thinking_signals=thinking_signals, world_state=motor_world, temp=1.0)
+            
+            next_window = windows[i+1].unsqueeze(0) #add batch dim = 1
+            true_next_env_state = world_model.extract_features(window=next_window)
+            recon_loss = torch.nn.functional.mse_loss(input=next_env_state, target=true_next_env_state)
+            print(f"next state pred loss: {recon_loss.squeeze(0).item():.5f}")
+
+    #after windows then trigger final reasoning + sentence reconstruction; make into self function if it works
+    print(f"window count before reset: {world_model.current_window_count}")
+
+    
+    #produce final state t for final reasoning
+    final_pre_state = world_model.get_final_pre_sensory_states(is_dream=False)
+
+    final_state = world_model.sensory_attention(state_inputs=final_pre_state, final_reasoning=True, is_dream=False)
+
+    print(f"window count after reset: {world_model.current_window_count}")
+
+    signals, cognitive_state = world_model.think(kv=[final_state], cognitive_states=cognitive_state)
+    final_semantic_preds, motor_action = world_model.propagate_action(
+        thinking_signals=signals, motor_state=motor_action
     )
 
-print(f"pre state shapes")
-print(f"env state: {pre_state[0].shape} | img_state {pre_state[1].shape} | semantic state: {pre_state[2].shape}")
+    #for now just use semantic decoding, need to add sentence reconstruction
+    #no need for next state pred cos we have none
+    # final_action = final_semantic_preds[0] #mu
+    # final_ids, _, final_conf = world_model.decode_vocab_ids(coefficients=final_action, return_confidences=True)
+    # final_semantics = world_model.construct_sentence(word_ids=final_ids) #need to change function name to construct semantics or something
+    # print(f"final semantics: {final_semantics} | conf: {final_conf.squeeze(0).item():.5f}")
 
-state_t = world_model.sensory_attention(state_inputs=pre_state)
-print(f"attended state t shape: {state_t.shape}")
+    #next to do: add sentence reconstruction here - use count of confidences above hyperparameter threshold for variable sentence length
+    final_action = final_semantic_preds[0] #mu
+    final_ids, final_confs, _ = world_model.decode_vocab_ids( #get also final confidences
+        coefficients=final_action, return_confidences=True)
+    
+    sentence_ids = world_model.decode_sentence(semantic_state=final_semantic_preds, confidences=final_confs, current_query=None)
+    sentence = world_model.construct_sentence(word_ids=sentence_ids)
+    print(f"final sentence: {sentence}")
 
-#pass state_t as list so its compatible with the mmha mod
-thinking_signals, cognitive_state = world_model.think(kv=[state_t], cognitive_states=cognitive_state)
-print(f"thinking signals shape: {thinking_signals.shape}")
-
-#first output path - main action
-semantic_state, action_state = world_model.propagate_action(
-    thinking_signals=thinking_signals, motor_state=action_state, return_prop=False
-    )
-
-print(f"mu shape: {semantic_state[0].shape} | var shape: {semantic_state[1].shape}")
-
-#deterministic decoding 
-det_action = semantic_state[0] #mu 
-det_ids, det_confs, det_avg_conf = world_model.decode_vocab_ids(coefficients=det_action, return_confidences=True)
-det_sentence = world_model.construct_sentence(det_ids)
-print(f"det sentence: {det_sentence} | confidence {det_avg_conf.squeeze(0).item():.3f}")
-#samped
-sam_actions, log_prob = world_model.sample_action(semantic_state=semantic_state)
-sam_ids, sam_confs, sam_avg_conf = world_model.decode_vocab_ids(coefficients=sam_actions, return_confidences=True)
-sam_sentence = world_model.construct_sentence(sam_ids)
-print(f"sam sentence: {sam_sentence} | confidence {sam_avg_conf.squeeze(0).item():.3f}")
-
-#next state pred - dream
-next_state, mdn_mu, mdn_ls, mdn_pi, world_state = world_model.predict_next_state(thinking_signals=thinking_signals, world_state=world_state, temp=1.0)
-print(f"img state pred shape: {next_state.shape} | mdn_mu: {mdn_mu.shape} | mdn_log_sig: {mdn_ls.shape} | mdn_pi: {mdn_pi.shape}")
 
 #print parameter count
 _ = world_model.print_parameter_count()
