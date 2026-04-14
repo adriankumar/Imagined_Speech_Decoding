@@ -1,13 +1,11 @@
-#python 3.10.19
-#do torch install first
-# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126 #pytorch library with cuda 12.6 
 matplotlib #for plots
 numpy #for numerical computations
 deep-translate #for online translation of chinese texts
+pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126 #pytorch library with cuda 12.6 
 braindecode #pytorch models for eeg 
 sentence-transformers
 transformers
 tqdm
 scipy
 seaborn
-# umap-learn
+umap-learn

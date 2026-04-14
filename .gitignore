@@ -2,3 +2,5 @@
 *.pyc
 *.pt
 /.vscode
+*.zip
+*.npz

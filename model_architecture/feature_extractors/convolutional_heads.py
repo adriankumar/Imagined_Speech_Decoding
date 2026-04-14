@@ -15,14 +15,14 @@ compressor_conv_layers = [(32, 8, 5), (24, 5, 3), (16, 4, 2), (8, 3, 1)]
 
 allowed_activations = ['leaky-relu', 'relu', 'silu']
 
-class ConvHead(nn.Module):
+class ConvHeadv0(nn.Module):
     def __init__(self, conv_layers=raw_spatial_conv_layers, 
-                 f_per_filter=8, chans=1, height=122, width=500, activation='silu'):
+                 f_per_filter=8, chans=1, height=122, width=500, activation='leaky-relu'):
         
         if activation not in allowed_activations:
             raise ValueError(f"{activation} must be in {allowed_activations}. Failed to initialise")
         
-        super(ConvHead, self).__init__() #inhrent from nn.mod
+        super(ConvHeadv0, self).__init__() #inhrent from nn.mod
         self.output_filters = conv_layers[-1][0] #conv config expected in tuple with (filters, kernel_size, stride), so last element and first tuple element is the final num filters
         self.fpf = f_per_filter #features per filter
         self.height = height 
@@ -134,19 +134,6 @@ class ConvHead(nn.Module):
         #concatenate all features into a single vector
         feature_vector = torch.cat(feature_layers, dim=1) #batch x (output_dim)
         return feature_vector
-
-    def print_parameter_count(self):
-        print('-----------------------------------------------------------')
-        conv_params = sum(p.numel() for p in self.conv_layers.parameters())
-        dense_params = sum(p.numel() for p in self.dense_layers.parameters())
-   
-
-        print(f"Total Parameter count for Conv Head: {conv_params + dense_params}")
-        print(f"Convolution parameters             : {conv_params}")
-        print(f"dense projections parameters       : {dense_params}")
-        print('-----------------------------------------------------------')
-
-        return conv_params + dense_params
     
     @property
     def num_filters(self):

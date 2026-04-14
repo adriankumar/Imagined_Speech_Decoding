@@ -1,13 +1,12 @@
 from .feature_extractors import (
-    plot_band_power, plot_spectrogram, plot_sinc_filters,
-    ConvHead, SincNet, 
-    extract_spectrogram, extract_band_power
+    SincNet, HjorthFeatures, ConvHeadv0,
+    extract_band_power, extract_psd, extract_spectrogram,
+    plot_band_power, plot_psd, plot_spectrogram, plot_hjorth_params, plot_sinc_filters
     )
 
 from .propagators import build_propagator
-from .attention_mod import MMHA, MMHA_DEFAULT_CONFIG, MMHA_DEFAULT_CTM
-from .feature_extractorv1 import FeatureExtractorv1 as FEv1
-from .ctmv1 import CTM as CTMv1
-from .ctmv2 import CTMv2
-from .q_networks import QV1
-from .neuralworldmodelv1 import NWMv1
+from .ctm import CTM
+from .feature_extractor import FeatureExtractorv0, FeatureExtractorv1
+from .neural_world_model import NeuralWorldModelv0 as NWMv0
+from .NWM_v1 import NeuralWorldModelv1 as NWMv1
+from .q_networks import QNetwork, QNetworkv2, QNetworkv2_1

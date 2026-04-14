@@ -12,7 +12,7 @@ allowed_activations = ['leaky-relu', 'relu', 'silu']
 #extracts learnable frequency band features from temporal eeg signals
 #default values should be 6157 parameters
 class SincNet(nn.Module):
-    def __init__(self, num_sinc_filters=24, output_dim=64,
+    def __init__(self, num_sinc_filters=24, output_dim=24,
                  eeg_channels=122, segment_length=500, freq=500, activation='silu'):
 
         if activation not in allowed_activations:
