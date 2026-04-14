@@ -82,6 +82,7 @@ class MMHA(nn.Module):
         self.config = MMHA_DEFAULT_CONFIG.copy() 
 
         if config is not None:
+            assert isinstance(config, dict), "config must be a dictionary"
             self.config.update(config)
         
         self.config.update(kwargs)
