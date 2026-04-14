@@ -1,0 +1,39 @@
+{  
+    "url": "https://cad.onshape.com/documents/05f6fc1eb14778311af42e2f/w/4d94704758516e956445f01e/e/dc821cbef11b2d0befafa22b",
+   
+    "output_format": "mujoco",
+    "robotName": "my_humanoid",
+ 
+    "freejoint": true, 
+ 
+    "joint_properties": { 
+        "*": {
+            "frictionloss": 0.001,
+            "damping": 0.5,
+            "armature": 0.01
+        },
+        "passive*": {
+            "actuated": false
+        },
+        "slider*": {
+            "actuated": true,
+            "type": "position",
+            "kp": 500,
+            "forcerange": 20
+        },
+        "dof_wheel_*": {
+            "actuated": true,
+            "type": "velocity",
+            "kv": 100,
+            "forcerange": 20
+        }
+    },
+    "equalities": {
+        "closing_*": {
+            "solref": "0.004 1",
+            "solimp": "0.900 0.999 0.001"
+
+        }
+    }
+}
+ 

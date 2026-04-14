@@ -1,0 +1,5 @@
+to run the scripts here such that the import statements work, just write in the terminal:
+
+`python -m <directory>.<filename>`
+
+assuming you are in the root directory; and don't add the .py at the end

@@ -2,3 +2,9 @@
 *.pyc
 *.pt
 /.vscode
+*.stl
+*.npz
+*.png
+onshape-stuff/.env
+*.part
+*.xml
