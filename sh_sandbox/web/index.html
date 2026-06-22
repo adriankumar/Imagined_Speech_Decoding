@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>spherical harmonics sandbox</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="topbar">spherical harmonics sandbox</header>
+
+  <div id="controls">
+    <div class="group">
+      <span class="label">view</span>
+      <button id="btn-basis" class="seg">basis</button>
+      <button id="btn-synthesis" class="seg">synthesis</button>
+      <button id="btn-roundtrip" class="seg">round-trip</button>
+    </div>
+    <div class="group" id="group-render">
+      <span class="label">render</span>
+      <button id="btn-blob" class="seg">blob</button>
+      <button id="btn-sphere" class="seg">sphere</button>
+      <button id="btn-nodes" class="seg">nodes</button>
+      <button id="btn-slice" class="seg">slice</button>
+      <button id="btn-bedit" class="seg">edit b</button>
+    </div>
+    <div class="group" id="group-anim">
+      <span class="label">animate</span>
+      <button id="btn-anim" class="seg">play</button>
+      <input type="range" id="anim-speed" min="0.1" max="3" step="0.1">
+    </div>
+    <div class="group">
+      <span class="label">L</span>
+      <select id="sel-l"></select>
+    </div>
+    <div class="group" id="group-samples">
+      <span class="label">samples</span>
+      <input type="range" id="n-range" min="1" max="150" step="1">
+      <span id="n-val" class="nval"></span>
+    </div>
+    <div id="nav-grid" class="grid-wrap"></div>
+    <div id="readout"></div>
+  </div>
+
+  <div id="content">
+    <aside id="sidebar"></aside>
+    <main id="stage">
+      <div id="plots">
+        <div class="plot-block">
+          <div class="plot-title">meridian cross-section</div>
+          <canvas id="plot-cross"></canvas>
+        </div>
+        <div class="plot-block">
+          <div class="plot-title">latitude</div>
+          <canvas id="plot-legendre"></canvas>
+          <div class="plot-cap" id="cap-legendre"></div>
+        </div>
+        <div class="plot-block">
+          <div class="plot-title">longitude</div>
+          <canvas id="plot-phi"></canvas>
+          <div class="plot-cap" id="cap-phi"></div>
+        </div>
+      </div>
+      <div id="cbar">
+        <span class="cbar-end">+</span>
+        <div class="cbar-grad"></div>
+        <span class="cbar-end">−</span>
+        <div class="cbar-mag" id="cbar-mag"></div>
+      </div>
+      <div id="rtcaption"></div>
+      <div id="system"><div class="sys-title">Y c = b   ·   linear system</div><canvas id="system-canvas"></canvas></div>
+      <div id="inspector"></div>
+    </main>
+  </div>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/OrbitControls.js"></script>
+  <script src="sh_math.js"></script>
+  <script src="render.js"></script>
+  <script src="plots.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>
