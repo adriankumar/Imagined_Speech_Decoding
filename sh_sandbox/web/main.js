@@ -1,6 +1,6 @@
 //sandbox state and control wiring
 
-const MAX_L = 4;
+const MAX_L = 5;
 const BASIS_NTHETA = 96, BASIS_NPHI = 192;
 const SYNTH_NTHETA = 64, SYNTH_NPHI = 128;
 const PLOT_W = 220, PLOT_H = 84;
