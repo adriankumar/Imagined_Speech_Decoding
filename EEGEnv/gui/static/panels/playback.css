@@ -1,0 +1,12 @@
+/* recording strip: raster with a window overlay and a playline */
+.pb-blank{color:#cfccc5;font-style:italic}
+
+.strip-wrap{position:relative;width:100%;height:90px;cursor:ew-resize;user-select:none}
+.strip-raster{position:absolute;inset:0;width:100%;height:100%;display:block;border:1px solid #e9e6e1;border-radius:4px}
+.strip-window{position:absolute;top:0;bottom:0;background:rgba(43,111,181,0.18);border-left:1px solid #2b6fb5;border-right:1px solid #2b6fb5;pointer-events:none}
+.strip-line{position:absolute;top:0;bottom:0;width:2px;background:#d04a3b;pointer-events:none}
+
+.strip-meta{display:flex;justify-content:space-between;font-size:11px;color:#6b6a66;margin-top:6px;font-variant-numeric:tabular-nums}
+.strip-wrap.locked{cursor:default}
+
+.pb-controls{display:flex;gap:6px;margin-bottom:8px}

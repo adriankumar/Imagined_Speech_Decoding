@@ -1,0 +1,13 @@
+/* base tokens, reused from the spherical harmonics sandbox sheet */
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif;color:#2b2926}
+body{display:flex;flex-direction:column;background:#faf9f7}
+
+#topbar{flex:0 0 auto;height:46px;display:flex;align-items:center;padding:0 20px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6b6a66;background:#faf9f7;border-bottom:1px solid #e9e6e1}
+
+.seg{font:inherit;font-size:12px;padding:5px 11px;border:1px solid #d8d4cd;background:#fff;color:#4a4843;border-radius:6px;cursor:pointer}
+.seg:hover{background:#f3f1ed}
+.seg.on{background:#2b2926;color:#fff;border-color:#2b2926}
+.seg:disabled{color:#bdbab3;cursor:not-allowed}
+
+select{font:inherit;font-size:12px;padding:4px 8px;border:1px solid #d8d4cd;border-radius:6px;background:#fff;cursor:pointer;max-width:180px}

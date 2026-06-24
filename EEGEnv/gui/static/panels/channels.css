@@ -1,0 +1,6 @@
+/* channels panel */
+.ch-blank{color:#cfccc5;font-style:italic}
+.ch-actions{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.ch-summary{font-size:11px;color:#6b6a66;line-height:1.5}
+.ch-summary .ch-key{color:#9a978f;text-transform:uppercase;font-size:10px;letter-spacing:.05em}
+#ch-body.locked{opacity:.5;pointer-events:none}

@@ -1,0 +1,6 @@
+/* information panel, read-only meta display */
+#info-body{font-size:12px}
+.info-blank{color:#cfccc5;font-style:italic}
+.info-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0;border-bottom:1px solid #f3f1ed}
+.info-row span:first-child{color:#9a978f;text-transform:uppercase;font-size:10px;letter-spacing:.05em;flex:0 0 auto}
+.info-row span:last-child{color:#2b2926;text-align:right;font-variant-numeric:tabular-nums;word-break:break-word}

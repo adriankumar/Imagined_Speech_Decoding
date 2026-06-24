@@ -1,0 +1,35 @@
+/* the fixed layout grid, panel placement matches the wireframe, change areas here to rearrange */
+#grid{
+  flex:1 1 auto; min-height:0; display:grid;
+  grid-template-columns:1fr 1fr;
+  grid-template-rows:auto auto auto auto 1fr 1fr;
+  grid-template-areas:
+    "load     info"
+    "channels info"
+    "controls geometry"
+    "playback playback"
+    "featviz  sh"
+    "featviz  decode";
+  gap:10px; padding:12px; overflow:auto;
+}
+
+#panel-load{grid-area:load}
+#panel-info{grid-area:info}
+#panel-channels{grid-area:channels}
+#panel-controls{grid-area:controls}
+#panel-geometry{grid-area:geometry}
+#panel-playback{grid-area:playback}
+#panel-featviz{grid-area:featviz}
+#panel-sh{grid-area:sh}
+#panel-decode{grid-area:decode}
+
+.panel{background:#fff;border:1px solid #e9e6e1;border-radius:8px;padding:10px 12px;min-height:0;overflow:auto}
+.panel-title{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9a978f;margin-bottom:8px}
+.placeholder{color:#cfccc5}
+
+/* collapse affordance for configuration panels */
+.collapse-caret{background:none;border:none;cursor:pointer;font-size:11px;color:#9a978f;padding:0 5px 0 0;line-height:1}
+.collapse-caret:hover{color:#4a4843}
+.panel.collapsed{align-self:start}
+.panel.collapsed .panel-title{margin-bottom:0}
+.panel.collapsed > *:not(.panel-title){display:none}

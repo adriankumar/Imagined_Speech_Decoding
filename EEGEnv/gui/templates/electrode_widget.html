@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>select electrodes</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='electrode_widget.css') }}">
+</head>
+<body class="widget-body">
+    <div id="widget-header">
+        <span id="widget-title">select electrodes</span>
+        <span id="selection-count">0 selected</span>
+    </div>
+
+    <svg id="electrode-svg"
+         viewBox="-1.2 -1.2 2.4 2.4"
+         preserveAspectRatio="xMidYMid meet">
+    </svg>
+
+    <div id="widget-actions">
+        <!-- buttons rendered by js based on action_context -->
+    </div>
+
+    <div id="widget-status"></div>
+
+    <script>
+        //action context is injected from the flask route into the page as a global
+        const ACTION_CONTEXT = "{{ context }}";
+    </script>
+    <script src="{{ url_for('static', filename='electrode_widget.js') }}"></script>
+</body>
+</html>

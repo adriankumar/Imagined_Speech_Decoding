@@ -1,0 +1,33 @@
+<div class="panel-title">loading</div>
+
+<div class="ld-row">
+  <button id="ld-pick" class="seg">choose edf...</button>
+  <span id="ld-file" class="ld-file">no file</span>
+</div>
+
+<div class="ld-row">
+  <span class="ld-label">montage</span>
+  <select id="ld-montage"></select>
+</div>
+
+<div class="ld-row">
+  <span class="ld-label">source ref</span>
+  <input id="ld-ref" type="text" value="average" class="ld-ref">
+</div>
+
+<div class="ld-row">
+  <button id="ld-load" class="seg">load</button>
+  <span id="ld-status" class="ld-status"></span>
+</div>
+
+<!-- unresolved channel modal, hidden until a load surfaces unresolved names -->
+<div id="ld-modal" class="ld-modal">
+  <div class="ld-modal-box">
+    <div class="ld-modal-head">unresolved channels for <span id="ld-modal-montage"></span></div>
+    <div id="ld-modal-list" class="ld-modal-list"></div>
+    <div class="ld-modal-actions">
+      <button id="ld-modal-auto" class="seg">auto-exclude these</button>
+      <button id="ld-modal-change" class="seg">change montage</button>
+    </div>
+  </div>
+</div>

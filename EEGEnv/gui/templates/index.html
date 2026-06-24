@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>eeg env diagnostic</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='layout.css') }}">
+  <!-- panel styles, one line per panel -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='panels/loading.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='panels/information.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='panels/featvis.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='panels/controls.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='panels/channels.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='panels/playback.css') }}">
+</head>
+<body>
+  <header id="topbar">eeg env diagnostic</header>
+
+  <div id="grid">
+    <!-- live panels -->
+    <section id="panel-load" class="panel" data-collapsible>{% include 'panels/loading.html' %}</section>
+    <section id="panel-info" class="panel" data-collapsible>{% include 'panels/information.html' %}</section>
+
+    <!-- placeholders, filled in later stages -->
+    <section id="panel-channels" class="panel" data-collapsible>{% include 'panels/channels.html' %}</section>
+    <section id="panel-controls" class="panel" data-collapsible>{% include 'panels/controls.html' %}</section>
+    <section id="panel-geometry" class="panel placeholder" data-collapsible><div class="panel-title">geometry controls</div></section>
+    <section id="panel-playback" class="panel">{% include 'panels/playback.html' %}</section>
+    <section id="panel-featviz" class="panel">{% include 'panels/featvis.html' %}</section>
+    <section id="panel-sh" class="panel placeholder"><div class="panel-title">spherical harmonics</div></section>
+    <section id="panel-decode" class="panel placeholder"><div class="panel-title">decoding simulation</div></section>
+  </div>
+
+  <!-- orchestration first, then panels register against it -->
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script src="{{ url_for('static', filename='collapse.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/loading.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/information.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/featvis.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/controls.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/channels.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/playback.js') }}"></script>
+</body>
+</html>
