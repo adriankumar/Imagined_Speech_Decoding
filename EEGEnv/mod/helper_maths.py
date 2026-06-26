@@ -63,6 +63,19 @@ def build_sh_basis(theta, phi, L):
             rows.append(row)
     return np.array(rows)  #row order is l=0..L, m=-l..l, the fixed mode order the model emits
 
+
+#least squares spherical-harmonic coefficients of a per-channel block b against basis Y
+#Y is ((L+1)^2, n_channels), b is (n_channels, F), returns coefficients ((L+1)^2, F)
+#the regulariser keeps the gram solve stable when electrodes sample the modes poorly
+def solve_sh_coefficients(Y, b, lam=1e-3):
+    gram = Y @ Y.T
+    gram[np.diag_indices_from(gram)] += lam
+    return np.linalg.solve(gram, Y @ b)
+
+#synthesise a per-channel block from coefficients through the load-bearing path Y^T c
+#c is ((L+1)^2, F), returns (n_channels, F)
+def synthesise_sh(Y, c):
+    return Y.T @ c
 #===================================================================
 # Re-reference EEG voltage
 #===================================================================

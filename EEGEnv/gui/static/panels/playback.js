@@ -1,5 +1,5 @@
 //recording strip with playback: a raster of the whole recording, a draggable playline, and a play loop
-//the raster is fetched once per strip_version, playback drives the feature panel through FeatureView
+//the raster is fetched once per strip_version, playback drives both panels through the frame coordinator
 (function(){
   let stripVersion = -1;
   let raster = null;      //{raster_url, n, width}
@@ -61,7 +61,7 @@
     });
   }
 
-  //commit a seek, the returned snapshot re-renders the feature panel at the new window
+  //commit a seek, the returned snapshot re-renders both panels through the frame coordinator
   async function commitSeek(start){
     const res = await fetch("/seek", {
       method:"POST", headers:{"Content-Type":"application/json"},
@@ -71,7 +71,6 @@
     if(!snap.error) GUI.apply(snap);
   }
 
-  //reflect the play button state from the local playing flag
   function reflectButton(){
     const b = el("pb-play");
     if(b){ b.textContent = playing ? "pause" : "play"; b.classList.toggle("on", playing); }
@@ -91,7 +90,7 @@
     playLoop();
   }
 
-  //one frame: advance and render server-side, push the image, move the playline, stop at the end
+  //one frame: advance and project server-side, apply the whole frame to both panels, move the playline
   async function playLoop(){
     if(!playing) return;
     const res = await fetch("/play_step", {
@@ -100,7 +99,7 @@
     });
     const data = await res.json();
     if(data.error){ stopLocal(); GUI.refresh(); return; }
-    if(window.FeatureView) FeatureView.setImage(data.render_url);
+    if(window.Frame) Frame.applyFrame(data);
     positionOverlay(data.cursor);
     if(data.at_end){ stopLocal(); GUI.refresh(); return; }
     playTimer = setTimeout(playLoop, 120);

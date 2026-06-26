@@ -36,14 +36,9 @@ def _render_array(env, array, names, kind):
     buf.seek(0)
     return "data:image/png;base64," + base64.b64encode(buf.read()).decode("ascii")
 
-#seek/peek render, lag primed from the previous window, the live stream untouched
-def render_feature_window(env, start, length, kind="image"):
-    array, names = env.peek_window_with_lag(start, length, kind=kind)
-    return _render_array(env, array, names, kind)
-
-#playback render, advances the live stream so lag and ema build across consecutive windows
-def render_playback_frame(env, start, length, kind="image"):
-    array, names = env.advance_feature_window(start, length, kind=kind)
+#render one feature stack to the feature image, image kind interpolates through M, stack kind scatters
+def render_stack_image(env, stack, names, kind):
+    array = env.encode_feature_image(stack) if kind == "image" else stack
     return _render_array(env, array, names, kind)
 
 #build a compressed channels-by-time raster of the whole recording and render it to a viridis png

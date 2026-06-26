@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="{{ url_for('static', filename='panels/loading.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='panels/information.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='panels/featvis.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='panels/sh.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='panels/controls.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='panels/channels.css') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='panels/playback.css') }}">
@@ -27,7 +28,7 @@
     <section id="panel-geometry" class="panel placeholder" data-collapsible><div class="panel-title">geometry controls</div></section>
     <section id="panel-playback" class="panel">{% include 'panels/playback.html' %}</section>
     <section id="panel-featviz" class="panel">{% include 'panels/featvis.html' %}</section>
-    <section id="panel-sh" class="panel placeholder"><div class="panel-title">spherical harmonics</div></section>
+    <section id="panel-sh" class="panel">{% include 'panels/sh.html' %}</section>
     <section id="panel-decode" class="panel placeholder"><div class="panel-title">decoding simulation</div></section>
   </div>
 
@@ -39,6 +40,9 @@
   <script src="{{ url_for('static', filename='panels/featvis.js') }}"></script>
   <script src="{{ url_for('static', filename='panels/controls.js') }}"></script>
   <script src="{{ url_for('static', filename='panels/channels.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/sh_plots.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/sh.js') }}"></script>
+  <script src="{{ url_for('static', filename='frame.js') }}"></script>
   <script src="{{ url_for('static', filename='panels/playback.js') }}"></script>
 </body>
 </html>

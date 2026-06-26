@@ -32,10 +32,12 @@ class Session:
         self.play_step = None    #playback step in samples, set on play, defaults to the window size
         self.auto_excluded = []    #unresolvable names approved at load, the env loses this across a re-resolve
         self.manual_excluded = []  #resolved names the user chose to drop, reset clears these
+        self.geometry_version = 0  #bumped when the basis Y changes, so the sh panel refetches it
 
     #bump the version so the polling frontend sees a change
     def _bump(self):
         self.state_version += 1
+        
 
     #construct a fresh env, the caller catches UnresolvedChannelsError to drive the popup
     def load(self, source, montage, ref_scheme, auto_exclude):
@@ -47,6 +49,7 @@ class Session:
         self.auto_excluded = list(self.env.get_auto_excluded)
         self.manual_excluded = []
         self.strip_version += 1
+        self.geometry_version += 1
         self._bump()
 
 
@@ -97,20 +100,37 @@ class Session:
         self.locked = True
         self._bump()
 
-    #render the cursor window advancing the live stream, then move the cursor, no version bump per tick
+    #assemble one frame from a single stack: the feature image plus the cheap sh projection data
+    def build_frame(self, stack, names, kind):
+        from .rendering import render_stack_image
+        url = render_stack_image(self.env, stack, names, kind)
+        coeffs, residual = self.env.project_coefficients(stack)
+        return {
+            "render_url": url,
+            "sh": _jsonable({"coeffs": coeffs, "residual": residual, "stack": stack, "names": names}),
+        }
+
+    #seek/load frame: a read-only peek at the cursor, lag primed, drives both panels
+    def frame(self, kind="image"):
+        stack, names = self.env.peek_stack(self.cursor, self.env.get_seg_len)
+        return self.build_frame(stack, names, kind)
+
+    #playback frame: advance the live stream once, build from that one stack, then move the cursor
     def play_advance(self, kind="image"):
-        from .rendering import render_playback_frame #lazy import
         env = self.env
         length = env.get_seg_len
-        url = render_playback_frame(env, self.cursor, length, kind=kind)
+        stack, names = env.advance_stack(self.cursor, length)
+        frame = self.build_frame(stack, names, kind)
         nxt = self.cursor + self.play_step
         at_end = nxt + length > env.get_timepoints
         if at_end:
             self.locked = False
-            self._bump()  #flip the lock off and let the panels resync
+            self._bump()
         else:
             self.cursor = int(nxt)
-        return url, int(self.cursor), bool(at_end)
+        frame["cursor"] = int(self.cursor)
+        frame["at_end"] = bool(at_end)
+        return frame
 
     #stop playback, clear the stream state, unlock the controls
     def play_stop(self):
@@ -152,6 +172,7 @@ class Session:
         self.cursor = 0
         self.strip_cache = None
         self.strip_version += 1
+        self.geometry_version += 1
         self._bump()
 
     #full application state as plain json, assembled from the env accessors only
@@ -168,6 +189,7 @@ class Session:
             "locked": self.locked,
             "cursor": self.cursor,
             "strip_version": self.strip_version,
+            "geometry_version": self.geometry_version,
             "collapsed": sorted(self.collapsed),
             "recording": {
                 "source": env.src,
@@ -254,18 +276,16 @@ def pick_edf():
         file_types=("EDF files (*.edf)", "All files (*.*)"))
     return jsonify({"path": result[0] if result else None})
 
-#render the current feature window to a png data url, body {kind, start, length}
-@app.route("/render", methods=["POST"])
-def render():
+#seek/load frame at the cursor, body {kind}, returns the feature image and the sh data for both panels
+@app.route("/frame", methods=["POST"])
+def frame():
     if session.env is None:
         return jsonify({"error": "no source loaded"}), 400
     body = request.get_json(silent=True) or {}
     try:
-        url = session.render(kind=body.get("kind", "image"),
-                             start=body.get("start"), length=body.get("length"))
+        return jsonify(session.frame(kind=body.get("kind", "image")))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"render_url": url, "kind": body.get("kind", "image")})
 
 #apply a single named control edit, body {name, value}, returns the new snapshot
 @app.route("/set", methods=["POST"])
@@ -326,17 +346,16 @@ def play_start():
     session.play_start(step=body.get("step"))
     return jsonify(session.snapshot())
 
-#advance one playback frame, body {kind}, returns the render url, the new cursor, and the end flag
+#advance one playback frame, returns the feature image, sh data, the new cursor, and the end flag
 @app.route("/play_step", methods=["POST"])
 def play_step():
     if session.env is None:
         return jsonify({"error": "no source loaded"}), 400
     body = request.get_json(silent=True) or {}
     try:
-        url, cursor, at_end = session.play_advance(kind=body.get("kind", "image"))
+        return jsonify(session.play_advance(kind=body.get("kind", "image")))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    return jsonify({"render_url": url, "cursor": cursor, "at_end": at_end})
 
 #stop playback, returns the snapshot so the panels unlock
 @app.route("/play_stop", methods=["POST"])
@@ -384,6 +403,14 @@ def reset_exclusions():
     except Exception as e:
             return jsonify({"error_type": "generic", "message": str(e)}), 400
     return jsonify(session.snapshot())
+
+#the harmonic basis transpose for the matrix view, fetched once per geometry_version
+@app.route("/sh_basis", methods=["GET"])
+def sh_basis():
+    if session.env is None:
+        return jsonify({"error": "no source loaded"}), 400
+    Y = session.env.get_sh_basis
+    return jsonify(_jsonable({"YT": Y.T, "n_modes": int(Y.shape[0]), "n_channels": int(Y.shape[1])}))
 
 #flask in a daemon thread, the pywebview window on the main thread, no js_api bridge
 def main():

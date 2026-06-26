@@ -12,7 +12,7 @@ from .helper_val_functions import (validate_montage, classify_channels, Unresolv
                                    check_margin, check_img_res,
                                    check_window_range, check_tensor_type, check_feature_flags)
 
-from .helper_maths import re_reference, encode_image, seconds_to_samples, robust_magnitude
+from .helper_maths import re_reference, encode_image, seconds_to_samples, robust_magnitude, synthesise_sh, solve_sh_coefficients
 from .feature_stack import FeatureStack, FEATURE_NAMES
 
 
@@ -334,6 +334,21 @@ class EEGEnv:
 
         return to_tensor(out, tensor_type, self.dtype), next_start
 
+    #least squares projection of a per-channel feature stack onto the harmonic basis
+    #returns coefficients ((L+1)^2, F) and the relative reconstruction residual per feature (F,)
+    def project_coefficients(self, stack):
+        Y = self.SH_dict['SH_basis']
+        coeffs = solve_sh_coefficients(Y, stack)
+        recon = synthesise_sh(Y, coeffs)
+        num = np.linalg.norm(stack - recon, axis=0)
+        den = np.linalg.norm(stack, axis=0)
+        residual = np.where(den > 0, num / den, 0.0)
+        return coeffs, residual
+
+    #interpolate a per-channel stack to the topographic image through the frozen operator M
+    def encode_feature_image(self, stack):
+        return encode_image(self.SH_dict['interpol_operator'], stack, self.img_res)
+
 #read-only/GUI specific
     #read-only feature window for diagnostics, returns the (array, panel_names) pair without advancing lag, ema or the cursor
     #kind 'image' encodes through M to (H, W, F), kind 'stack' returns the raw (n_channels, F) at the electrodes
@@ -357,7 +372,7 @@ class EEGEnv:
     
     #read-only peek that primes the lag cache from the previous window so lag updates while sweeping
     #an isolated feature stack mirrors the live config, the live stream is never touched, ema stays cold
-    def peek_window_with_lag(self, start, length, feature_toggles=None, kind="image"):
+    def peek_stack(self, start, length, feature_toggles=None):
         check_window_range(start, length, self.time_points)
         if feature_toggles is not None:
             check_feature_flags(feature_toggles, FEATURE_NAMES)
@@ -374,18 +389,16 @@ class EEGEnv:
         window = self.get_referenced_window(start, start + length)
         stack = probe.compute(window, feature_toggle=feature_toggles, update=False)
         names = probe.enabled_names(feature_toggles)
-        array = encode_image(self.SH_dict['interpol_operator'], stack, self.img_res) if kind == "image" else stack
-        return array, names
+        return stack, names
 
     #advance the live stream one window, lag and ema build across calls, used by playback
-    def advance_feature_window(self, start, length, feature_toggles=None, kind="image"):
+    def advance_stack(self, start, length, feature_toggles=None):
         check_window_range(start, length, self.time_points)
         if feature_toggles is not None:
             check_feature_flags(feature_toggles, FEATURE_NAMES)
         stack = self._compute_window(start, length, self.features, feature_toggles=feature_toggles, update=True)
         names = self.features.enabled_names(feature_toggles)
-        array = encode_image(self.SH_dict['interpol_operator'], stack, self.img_res) if kind == "image" else stack
-        return array, names
+        return stack, names
 
 #functions related to generating and saving images and videos of current configurations in code outside of GUI
 
@@ -506,3 +519,7 @@ class EEGEnv:
     @property
     def get_pos_2d(self):
         return self.SH_dict['pos_2d']
+    
+    @property
+    def get_sh_basis(self):
+        return self.SH_dict['SH_basis']

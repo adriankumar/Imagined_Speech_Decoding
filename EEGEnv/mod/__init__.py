@@ -15,7 +15,8 @@ from .helper_maths import (l_max, compute_sphere_params, compute_spherical_angle
                            azimuthal_2d, build_interpolation_operator, build_sh_basis, 
                            re_reference, time_variance, feature_median, feature_mean,feature_iqr,
                            hjorth_mobility, hjorth_complexity, encode_image, seconds_to_samples, samples_to_seconds,
-                           robust_magnitude, project_sh_coefficients, reconstruct_from_sh, ema_update, )
+                           robust_magnitude, project_sh_coefficients, reconstruct_from_sh, ema_update, 
+                           solve_sh_coefficients, synthesise_sh)
 
 from .helper_vis import view_animation, view_window, save_animation ,save_window
 
