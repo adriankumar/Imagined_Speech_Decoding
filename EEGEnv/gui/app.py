@@ -72,6 +72,11 @@ class Session:
             env.change_feature_weight(value)            #{feature_name: float}
         elif name == "feature_accum":
             env.change_feature_accum(accum=value["accum"], alpha=value.get("alpha"))
+        elif name == "L_degree":
+            env.change_L(int(value))
+            self.geometry_version += 1
+        elif name == "margin":
+            env.change_margin(float(value))
         else:
             raise ValueError(f"unknown argument: {name}")
         self._bump()
@@ -175,6 +180,20 @@ class Session:
         self.geometry_version += 1
         self._bump()
 
+    #simulate a model coefficient delta on the current window, random directions scaled per feature
+    #magnitude tracks each feature's own coefficient rms so every feature shows a comparable change
+    def decode_simulation(self, scale=1.0, seed=None):
+        from .rendering import render_decode_png
+        env = self.env
+        stack, names = env.peek_stack(self.cursor, env.get_seg_len)
+        coeffs, _ = env.project_coefficients(stack)
+        rms = np.sqrt((coeffs ** 2).mean(axis=0))
+        rms = np.where(rms > 0, rms, 1.0)
+        rng = np.random.default_rng(seed)
+        delta_coeffs = scale * rng.standard_normal(coeffs.shape) * rms[None, :]
+        before, delta_image, after = env.decode_delta(stack, delta_coeffs)
+        return {"render_url": render_decode_png(env, before, delta_image, after, names)}
+
     #full application state as plain json, assembled from the env accessors only
     def snapshot(self):
         if self.env is None:
@@ -203,6 +222,7 @@ class Session:
                 "target_ref": env.get_target_ref,
                 "L": env.get_L,
                 "margin": env.get_margin,
+                "L_ceiling": int(np.floor(np.sqrt(env.get_n_chns)) - 1),
                 "img_res": list(env.get_img_res),
                 "window_size": env.get_seg_len,
             },
@@ -411,6 +431,17 @@ def sh_basis():
         return jsonify({"error": "no source loaded"}), 400
     Y = session.env.get_sh_basis
     return jsonify(_jsonable({"YT": Y.T, "n_modes": int(Y.shape[0]), "n_channels": int(Y.shape[1])}))
+
+#decode simulation on the current window, body {scale, seed}, returns the before/delta/after render
+@app.route("/decode_sim", methods=["POST"])
+def decode_sim():
+    if session.env is None:
+        return jsonify({"error": "no source loaded"}), 400
+    body = request.get_json(silent=True) or {}
+    try:
+        return jsonify(session.decode_simulation(scale=float(body.get("scale", 1.0)), seed=body.get("seed")))
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 #flask in a daemon thread, the pywebview window on the main thread, no js_api bridge
 def main():

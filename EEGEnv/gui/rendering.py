@@ -67,3 +67,33 @@ def build_strip_png(env, width=1000):
     plt.imsave(buf, raster, cmap="viridis", format="png")  #imsave normalises to the raster's own range
     buf.seek(0)
     return "data:image/png;base64," + base64.b64encode(buf.read()).decode("ascii"), n_ch, width
+
+
+#render the decode simulation as before, delta, after columns, one row per feature
+#before and after share a colour scale per feature, delta is a symmetric diverging map centred at zero
+def render_decode_png(env, before, delta, after, names):
+    F = before.shape[2]
+    fig = plt.figure(figsize=(3 * 2.7, F * 2.5), dpi=100)
+    titles = ["before", "delta", "after"]
+    for i in range(F):
+        lo = float(min(before[:, :, i].min(), after[:, :, i].min()))
+        hi = float(max(before[:, :, i].max(), after[:, :, i].max()))
+        dmax = float(np.abs(delta[:, :, i]).max()) or 1e-9
+        for j, img in enumerate([before, delta, after]):
+            ax = fig.add_subplot(F, 3, i * 3 + j + 1)
+            if j == 1:
+                m = ax.imshow(img[:, :, i], origin="lower", cmap="RdBu_r", vmin=-dmax, vmax=dmax)
+            else:
+                m = ax.imshow(img[:, :, i], origin="lower", cmap="viridis", vmin=lo, vmax=hi)
+            if i == 0:
+                ax.set_title(titles[j], fontsize=9)
+            if j == 0:
+                ax.set_ylabel(names[i], fontsize=8)
+            ax.set_xticks([]); ax.set_yticks([])
+            fig.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
+    fig.subplots_adjust(left=0.08, right=0.96, top=0.94, bottom=0.03, wspace=0.30, hspace=0.20)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")
+    plt.close(fig)
+    buf.seek(0)
+    return "data:image/png;base64," + base64.b64encode(buf.read()).decode("ascii")

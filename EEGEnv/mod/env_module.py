@@ -334,6 +334,15 @@ class EEGEnv:
 
         return to_tensor(out, tensor_type, self.dtype), next_start
 
+    #apply a coefficient-space delta through the decode pathway Y^T then M onto the current window
+    #returns before, delta, and after images each (H, W, F), the live state is never touched
+    def decode_delta(self, stack, delta_coeffs):
+        before = self.encode_feature_image(stack)
+        delta_electrode = synthesise_sh(self.SH_dict['SH_basis'], delta_coeffs)
+        delta_image = self.encode_feature_image(delta_electrode)
+        after = before + delta_image
+        return before, delta_image, after
+
     #least squares projection of a per-channel feature stack onto the harmonic basis
     #returns coefficients ((L+1)^2, F) and the relative reconstruction residual per feature (F,)
     def project_coefficients(self, stack):

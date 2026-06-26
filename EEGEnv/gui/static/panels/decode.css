@@ -1,0 +1,8 @@
+/* decoding simulation panel */
+.dec-blank{color:#cfccc5;font-style:italic}
+.dec-hint{font-size:11px;color:#9a978f;margin-bottom:8px;line-height:1.4}
+.dec-controls{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.dec-scale{display:flex;align-items:center;gap:6px;font-size:12px;color:#4a4843}
+.dec-scale input[type=range]{width:120px}
+.dec-scale .dec-scaleval{font-variant-numeric:tabular-nums;color:#6b6a66;width:32px}
+#dec-img-wrap img{display:block;max-width:100%}
