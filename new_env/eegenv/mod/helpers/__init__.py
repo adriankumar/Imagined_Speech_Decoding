@@ -18,6 +18,7 @@ from .helper_val import (check_harmonic_capacity, validate_toggles,
                          check_img_res, check_margin, check_feature_scale,
                          validate_explicit_args, is_string,
                          validate_sampling_rate, check_window_range,
+                         ceiling_degree, recommend_degree
                          )
 
 from .helper_visualisers import (view_raw_window, save_raw_window,

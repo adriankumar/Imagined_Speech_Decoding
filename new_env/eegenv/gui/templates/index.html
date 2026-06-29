@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>eeg env diagnostic</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+  <header id="topbar">eeg env diagnostic</header>
+
+  <div id="grid">
+    <!-- source: loading and channels under one collapsible, internally separate subpanels -->
+    <section id="panel-source" class="panel container" data-collapsible>
+      <div class="panel-title">source</div>
+      <div class="container-body">
+        <div class="subpanel">{% include 'panels/loading.html' %}</div>
+        <div class="subpanel">{% include 'panels/channels.html' %}</div>
+      </div>
+    </section>
+
+    <!-- features: feature stack controls and geometry under one collapsible -->
+    <section id="panel-features" class="panel container" data-collapsible>
+      <div class="panel-title">feature stack &amp; geometry</div>
+      <div class="container-body">
+        <div class="subpanel">{% include 'panels/controls.html' %}</div>
+        <div class="subpanel">{% include 'panels/geometry.html' %}</div>
+      </div>
+    </section>
+
+    <!-- recording playback -->
+    <section id="panel-playback" class="panel">{% include 'panels/playback.html' %}</section>
+
+    <!-- feature visualisation -->
+    <section id="panel-featviz" class="panel">{% include 'panels/featvis.html' %}</section>
+
+    <!-- decoding simulation -->
+    <section id="panel-decode" class="panel">{% include 'panels/decode.html' %}</section>
+  </div>
+
+  <!-- read-only info modal, hidden until opened from the loading panel -->
+  {% include 'panels/info_modal.html' %}
+
+  <!-- orchestration first, then panels register against it -->
+  <script src="{{ url_for('static', filename='main.js') }}"></script>
+  <script src="{{ url_for('static', filename='collapse.js') }}"></script>
+  <script src="{{ url_for('static', filename='frame.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/info.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/loading.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/channels.js') }}"></script>
+  <!-- stage 6: panels/controls.js, panels/geometry.js -->
+  <!-- stage 7: panels/playback.js -->
+  <!-- stage 8: panels/sh_plots.js, panels/featvis.js -->
+  <!-- stage 9: panels/decode.js -->
+</body>
+</html>

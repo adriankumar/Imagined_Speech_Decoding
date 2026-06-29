@@ -9,7 +9,7 @@ from .helpers import (DEFAULT_EXCLUDE,
                       get_channel_positions, compute_spherical_angles, 
                       azimuthal_2d_projection, build_img_interpolation,
                       encode_image, re_reference, get_window_data, check_window_range,
-                      relative_residual,
+                      relative_residual, ceiling_degree, recommend_degree
                       )
 
 from collections import namedtuple
@@ -18,7 +18,7 @@ from collections import namedtuple
 DecodePreview = namedtuple("DecodePreview",
     ["current_stack", "predicted_stack", "target_stack", "delta_coeffs",
      "electrode_residual", "image_residual",
-     "before_image", "delta_image", "after_image"])
+     "before_image", "delta_image", "after_image", "target_image"])
 
 
 class EEGEnv:
@@ -183,11 +183,17 @@ class EEGEnv:
     #read one window and cast to the env dtype, reference applied so the values match what features see
     def _read_window(self, start, apply_ref=True):
         check_window_range(start, self.window_size, self.timepoints)
-        data = get_window_data(self._recording_header, self._pick_order, start, start + self.window_size)
+        return self.read_referenced_span(start, start + self.window_size, apply_ref)
+
+    #read an arbitrary referenced span [start, stop), columns are time
+    def read_referenced_span(self, start, stop, apply_ref=True):
+        start = max(0, int(start))
+        stop = min(int(stop), self.timepoints)
+        data = get_window_data(self._recording_header, self._pick_order, start, stop)
         
         if apply_ref:
             data = re_reference(data, self.target_ref, self._recording_ref, self.chns_list)
-
+        
         return np.ascontiguousarray(data, dtype=self.dtype)
 
     #the raw per-channel window before any feature, shape (n_channels, window_size), defaults to the cursor
@@ -241,17 +247,23 @@ class EEGEnv:
         after = before + delta_image
         return before, delta_image, after
     
-    #decode preview at the current cursor, reads the current and the one-step-future window read-only, advances nothing
+    #decode preview at the current cursor, reads the current window then the one-step-future window read-only, advances nothing
     #delta_coeffs None forms the true delta c_next - c_current (the floor), zeros gives persistence, a model array gives the prediction
-    #lag stays relative to the live stream: a scratch copy reproduces the current window then computes next against it, live state untouched
+    #at the last window the future does not exist, the forward fields come back None and only the current view is populated
     def preview_decode_at_cursor(self, delta_coeffs=None):
         start = self.window_cursor
         next_start = start + self.window_size
-        check_window_range(next_start, self.window_size, self.timepoints) #the future window must fit
 
-        scratch = self.features.copy() #inherits the live lag cache, absorbs both writes so the live stream is untouched
-
+        scratch = self.features.copy() #inherits the live lag cache so the live stream is untouched
         b_current = scratch.compute_features(self._read_window(start), advance_lag=True) #reproduces the live current window, primes scratch prev with current
+        before = self.to_image(b_current)
+
+        #no future window to decode against, hand back the current view alone with the forward slots blank
+        if next_start + self.window_size > self.timepoints:
+            return DecodePreview(current_stack=b_current, predicted_stack=None, target_stack=None, delta_coeffs=None,
+                                electrode_residual=None, image_residual=None,
+                                before_image=before, delta_image=None, after_image=None, target_image=None)
+
         b_next = scratch.compute_features(self._read_window(next_start), advance_lag=False) #lag is next relative to current
 
         c_current = self.harmonics.compress(b_current)
@@ -262,14 +274,15 @@ class EEGEnv:
         predicted_stack = self.harmonics.reconstruct(c_current + delta)
         electrode_residual = relative_residual(predicted_stack, b_next)
 
-        #image space scores the true current image plus the predicted nudge against the encoded next window
-        before, delta_image, after = self.decode_to_image(b_current, delta)
-        image_residual = relative_residual(after, self.to_image(b_next))
+        #image space scores the current image plus the predicted nudge against the encoded next window, both encoded once
+        delta_image = self.to_image(self.decode_to_electrodes(delta))
+        after = before + delta_image
+        target_image = self.to_image(b_next)
+        image_residual = relative_residual(after, target_image)
 
         return DecodePreview(current_stack=b_current, predicted_stack=predicted_stack, target_stack=b_next, delta_coeffs=delta,
-                             electrode_residual=electrode_residual, image_residual=image_residual,
-                             before_image=before, delta_image=delta_image, after_image=after)
-    
+                            electrode_residual=electrode_residual, image_residual=image_residual,
+                            before_image=before, delta_image=delta_image, after_image=after, target_image=target_image)
     #=====
     #changer functions
     #====   
@@ -295,6 +308,10 @@ class EEGEnv:
     def change_window_size(self, window_size):
         self.window_size = reconcile_window_size(window_size, self.timepoints)
         self.reset_stream()
+
+    #window size given in seconds, converts through the sampling rate then delegates to the timepoint changer
+    def change_window_size_seconds(self, seconds):
+        self.change_window_size(int(round(seconds * self.sfreq)))
 
     def change_target_ref(self, target_ref):
         self.target_ref = reconcile_target_ref(target_ref, self.chns_list)
@@ -325,6 +342,21 @@ class EEGEnv:
                         excluded_chns=excluded_chns, sfreq=None, auto_exclude=self.auto_exclude)
         self.reset_stream()
 
+    #recommended degree per electrode count, any iterable of counts, a list [32, 64, 53] or a range
+    #the gui passes the single current count, a model sweep can pass many, fit stays overdetermined throughout
+    def recommend_L(self, electrode_counts):
+        return {int(n): recommend_degree(n) for n in electrode_counts}
+
+    #jump the cursor to a window start and prime the lag cache from the previous window
+    #so the window at start carries coherent lag, the read & stream methods then run read-only against it
+    def seek(self, start):
+        start = max(0, min(int(start), self.timepoints - self.window_size))
+        self.window_cursor = start
+        self.features.reset()
+        if start >= self.window_size: #a previous window exists to difference against
+            self.features.compute_features(self._read_window(start - self.window_size), advance_lag=True)
+        return start
+
     @property
     def Y(self):  #harmonic basis ((L+1)^2, n_channels)
         return self.harmonics.basis
@@ -338,5 +370,17 @@ class EEGEnv:
         return self.harmonics.n_modes
 
     @property
+    def L_ceiling(self):  #largest resolvable degree for this montage, (L+1)^2 <= n_chns
+        return ceiling_degree(self.n_chns)
+
+    @property
+    def recommended_L(self):  #recommended degree for this recording, leaves the fit overdetermined
+        return recommend_degree(self.n_chns)
+
+    @property
     def at_stream_end(self):  #true when the cursor window would run past the recording
         return self.window_cursor + self.window_size > self.timepoints
+    
+    @property
+    def recording_ref(self):  #the reference the recording was captured in, metadata only
+        return self._recording_ref

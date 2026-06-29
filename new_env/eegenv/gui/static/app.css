@@ -1,0 +1,153 @@
+/* base, neutral palette, restyle later */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: #2c2b28;
+  background: #f4f3f0;
+}
+
+#topbar {
+  padding: 10px 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: #6b6a66;
+  border-bottom: 1px solid #e2e0db;
+  background: #fbfaf8;
+}
+
+/* grid, source and features side by side, the wide panels stacked full width below */
+#grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
+  padding: 12px;
+}
+#panel-source   { grid-column: 1 / 7; }
+#panel-features { grid-column: 7 / 13; }
+#panel-playback { grid-column: 1 / 13; }
+#panel-featviz  { grid-column: 1 / 13; }
+#panel-decode   { grid-column: 1 / 13; }
+
+@media (max-width: 900px) {
+  #panel-source, #panel-features { grid-column: 1 / 13; }
+}
+
+/* panel chrome */
+.panel {
+  background: #fbfaf8;
+  border: 1px solid #e2e0db;
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #8a8884;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* collapse: hide everything under a collapsed panel except its title */
+.panel.collapsed > *:not(.panel-title) { display: none; }
+.collapse-caret {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: #8a8884;
+  padding: 0;
+  line-height: 1;
+}
+
+/* container, two subpanels laid out side by side, internally still separate */
+.container-body {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.container-body .subpanel { flex: 1 1 0; min-width: 0; }
+@media (max-width: 700px) {
+  .container-body { flex-direction: column; }
+}
+
+/* segmented buttons */
+.seg {
+  border: 1px solid #d6d4ce;
+  background: #fff;
+  color: #2c2b28;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.seg:hover:not(:disabled) { background: #f0eee9; }
+.seg.on { background: #2c2b28; color: #fbfaf8; border-color: #2c2b28; }
+.seg:disabled { opacity: 0.4; cursor: default; }
+
+/* locked, controls go read-only during playback */
+.locked { opacity: 0.5; pointer-events: none; }
+
+/* loading panel */
+.ld-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.ld-label { font-size: 11px; color: #8a8884; text-transform: uppercase; letter-spacing: 0.04em; }
+.ld-meta select, .ld-ref {
+  border: 1px solid #d6d4ce; border-radius: 5px; padding: 4px 6px; font-size: 12px; background: #fff;
+}
+.ld-ref { width: 110px; }
+.ld-file { font-size: 12px; color: #6b6a66; font-style: italic; min-width: 60px; }
+.ld-status { font-size: 11px; color: #8a8884; }
+
+/* blanks */
+.ch-blank, .ctrl-blank, .geo-blank, .pb-blank, .fv-blank, .dec-blank, .sh-blank, .info-blank {
+  font-size: 12px; color: #b0aea8; font-style: italic; padding: 6px 0;
+}
+
+/* channels summary */
+.ch-actions { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.ch-summary { font-size: 12px; line-height: 1.7; }
+.ch-key { color: #8a8884; display: inline-block; min-width: 130px; }
+
+/* modal scaffold, shared by the unresolved modal and the info modal */
+.ld-modal, .modal {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(20, 19, 17, 0.35);
+  align-items: center; justify-content: center;
+  z-index: 50;
+}
+.ld-modal-box, .modal-box {
+  background: #fbfaf8;
+  border: 1px solid #d6d4ce;
+  border-radius: 8px;
+  padding: 16px 18px;
+  min-width: 320px;
+  max-width: 560px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.15);
+}
+.ld-modal-head, .modal-head {
+  font-weight: 600; margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.ld-modal-list { font-size: 12px; color: #4a4843; margin-bottom: 12px; line-height: 1.6; }
+.ld-modal-actions, .modal-actions { display: flex; gap: 8px; }
+.modal-close { border: none; background: none; cursor: pointer; color: #8a8884; font-size: 12px; }
+
+/* info modal body */
+.info-body { max-height: 60vh; overflow-y: auto; }
+.info-row {
+  display: flex; justify-content: space-between; gap: 16px;
+  padding: 3px 0; font-size: 12px; border-bottom: 1px solid #efede8;
+}
+.info-row span:first-child { color: #8a8884; }
+.info-row span:last-child { text-align: right; color: #2c2b28; }
+
+/* media in the wide panels never overflows its panel */
+.panel img { max-width: 100%; height: auto; display: block; }

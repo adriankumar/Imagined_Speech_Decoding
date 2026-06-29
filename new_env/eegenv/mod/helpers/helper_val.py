@@ -1,7 +1,7 @@
 from .constants import (MNE_MONTAGES, IMG_MIN, IMG_MAX, MARGIN_MIN, MARGIN_MAX)
 from .helper_functions import (_lowercase_key,
                                )
-
+import math
 #----------------
 #Spherical Harmonics
 #----------------
@@ -13,6 +13,17 @@ def check_harmonic_capacity(L, n_chns):
         raise ValueError(f"L={L} with {(L+1)**2} bases/harmonic modes cannot reliably represent reconstruction with {n_chns} channels; {n_chns} must be >= {(L+1)**2};",
                          "Lower the value of L, or instantiate a new EEGEnv with lower L to make up for electrode ranges")
 
+#largest degree whose (L+1)^2 modes fit a channel budget, isqrt is exact so the boundary never slips
+def _max_degree_for_budget(budget):
+    return max(math.isqrt(max(budget, 1)) - 1, 0)
+
+#the resolvable ceiling for a channel count, the largest L it can represent at all, (L+1)^2 <= n
+def ceiling_degree(n_chns):
+    return _max_degree_for_budget(n_chns)
+
+#the recommended degree, halves the budget so the least squares fit stays overdetermined not interpolating
+def recommend_degree(n_chns):
+    return _max_degree_for_budget(n_chns // 2)
 #----------------
 #Feature Stack
 #----------------
