@@ -1,5 +1,5 @@
 import numpy as np 
-from .sphereical_harmonics import SphericalHarmonics as sh
+from .spherical_harmonics import SphericalHarmonics as sh
 from .feature_stack import FeatureStack as fs
 from .helpers import (DEFAULT_EXCLUDE,
                       check_img_res, check_margin, validate_explicit_args, 
@@ -16,7 +16,7 @@ from collections import namedtuple
 
 #paired decode output, the predicted tensors alongside the scores that measure them, produced together from the same locals
 DecodePreview = namedtuple("DecodePreview",
-    ["predicted_stack", "target_stack", "delta_coeffs",
+    ["current_stack", "predicted_stack", "target_stack", "delta_coeffs",
      "electrode_residual", "image_residual",
      "before_image", "delta_image", "after_image"])
 
@@ -266,7 +266,7 @@ class EEGEnv:
         before, delta_image, after = self.decode_to_image(b_current, delta)
         image_residual = relative_residual(after, self.to_image(b_next))
 
-        return DecodePreview(predicted_stack=predicted_stack, target_stack=b_next, delta_coeffs=delta,
+        return DecodePreview(current_stack=b_current, predicted_stack=predicted_stack, target_stack=b_next, delta_coeffs=delta,
                              electrode_residual=electrode_residual, image_residual=image_residual,
                              before_image=before, delta_image=delta_image, after_image=after)
     

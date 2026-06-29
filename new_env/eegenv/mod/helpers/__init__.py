@@ -19,3 +19,10 @@ from .helper_val import (check_harmonic_capacity, validate_toggles,
                          validate_explicit_args, is_string,
                          validate_sampling_rate, check_window_range,
                          )
+
+from .helper_visualisers import (view_raw_window, save_raw_window,
+                                  view_features, save_features,
+                                  view_compressed, save_compressed,
+                                  view_decode, save_decode,
+                                  build_raw_window_figure, build_features_figure,
+                                  build_compressed_figure)

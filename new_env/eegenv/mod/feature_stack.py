@@ -110,6 +110,11 @@ class FeatureStack:
         clone.lag_cache_ready = self.lag_cache_ready
         return clone
 
+    #the enabled feature names in fixed order, with an optional per-call toggle override, for panel labels
+    def enabled_names(self, feature_toggles=None):
+        active = self.feature_toggles if feature_toggles is None else {**self.feature_toggles, **feature_toggles}
+        return [name for name in FEATURE_NAMES if active[name]]
+
     #=====
     #changer functions
     #====   
