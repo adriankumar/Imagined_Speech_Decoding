@@ -1,4 +1,7 @@
 /* base, neutral palette, restyle later */
+:root {
+  --vis-max: 760px;   /* fixed display width for every visualisation image and canvas, adjust here once */
+}
 * { box-sizing: border-box; }
 body {
   margin: 0;
@@ -26,15 +29,10 @@ body {
   gap: 12px;
   padding: 12px;
 }
-#panel-source   { grid-column: 1 / 7; }
-#panel-features { grid-column: 7 / 13; }
+#panel-source   { grid-column: 1 / 13; }
+#panel-features { grid-column: 1 / 13; }
 #panel-playback { grid-column: 1 / 13; }
-#panel-featviz  { grid-column: 1 / 13; }
-#panel-decode   { grid-column: 1 / 13; }
-
-@media (max-width: 900px) {
-  #panel-source, #panel-features { grid-column: 1 / 13; }
-}
+#panel-visual   { grid-column: 1 / 13; }
 
 /* panel chrome */
 .panel {
@@ -149,5 +147,81 @@ body {
 .info-row span:first-child { color: #8a8884; }
 .info-row span:last-child { text-align: right; color: #2c2b28; }
 
-/* media in the wide panels never overflows its panel */
-.panel img { max-width: 100%; height: auto; display: block; }
+/* feature controls grid, four base columns, lag under base, weight under each name */
+.ctrl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 14px; }
+.ctrl-col { display: flex; flex-direction: column; gap: 8px; }
+.ctrl-feat { display: flex; flex-direction: column; gap: 3px; }
+.ctrl-feat label { font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ctrl-feat input[type=number] {
+  width: 100%; border: 1px solid #d6d4ce; border-radius: 4px; padding: 3px 5px; font-size: 12px;
+}
+.ctrl-lag label { color: #6b6a66; }
+.ctrl-disabled { opacity: 0.45; }
+
+/* geometry rows */
+.geo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.geo-label {
+  font-size: 11px; color: #8a8884; text-transform: uppercase; letter-spacing: 0.04em; min-width: 120px;
+}
+.geo-sub { font-size: 11px; color: #8a8884; margin: 2px 0 8px; }
+.geo-row select, .geo-row input[type=number] {
+  border: 1px solid #d6d4ce; border-radius: 5px; padding: 4px 6px; font-size: 12px; background: #fff;
+}
+.geo-mval { font-size: 12px; color: #6b6a66; min-width: 30px; }
+
+/* playback controls */
+.pb-controls { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+.pb-zoom, .pb-ws-ctrl { display: flex; align-items: center; gap: 6px; }
+.pb-label { font-size: 11px; color: #8a8884; text-transform: uppercase; letter-spacing: 0.04em; }
+.pb-ws-ctrl input[type=number] {
+  width: 80px; border: 1px solid #d6d4ce; border-radius: 5px; padding: 4px 6px; font-size: 12px;
+}
+.pb-ws-ctrl select {
+  border: 1px solid #d6d4ce; border-radius: 5px; padding: 4px 6px; font-size: 12px; background: #fff;
+}
+.pb-ws-status { font-size: 11px; color: #b5564a; }
+
+/* recording strip, intentionally full width to span the timeline */
+.strip-wrap {
+  position: relative; width: 100%; height: 140px; overflow: hidden;
+  border: 1px solid #e2e0db; border-radius: 4px; cursor: pointer; user-select: none;
+}
+.strip-raster { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.strip-window {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
+  background: rgba(255,255,255,0.18);
+  border-left: 1px solid rgba(255,255,255,0.7); border-right: 1px solid rgba(255,255,255,0.7);
+  pointer-events: none;
+}
+.strip-line { position: absolute; top: 0; bottom: 0; left: 0; width: 2px; background: #ff7a4a; pointer-events: none; }
+.strip-wrap.locked { cursor: default; }
+.strip-meta { display: flex; justify-content: space-between; font-size: 11px; color: #8a8884; margin-top: 4px; }
+
+/* visualisation surfaces, every feature view and decode render fixed to one width via --vis-max */
+.fv-toolbar, .dec-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.dec-label { font-size: 11px; color: #8a8884; text-transform: uppercase; letter-spacing: 0.04em; }
+
+#fv-img, #dec-img {
+  display: block;
+  max-width: var(--vis-max);
+  height: auto;
+}
+
+/* the harmonic system canvas spans the panel rather than the fixed image cap */
+#fv-canvas { display: block; width: 100%; margin-top: 8px; }
+
+/* any other image inside a panel never overflows, but the strip raster is exempt (handled above) */
+.panel img:not(.strip-raster):not(#fv-img):not(#dec-img) { max-width: 100%; height: auto; display: block; }
+
+/* electrode selector popup */
+.widget-body { padding: 12px; }
+#widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+#widget-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #6b6a66; }
+#selection-count { font-size: 11px; color: #8a8884; }
+#electrode-svg { width: 100%; height: 380px; border: 1px solid #e2e0db; border-radius: 6px; background: #fbfaf8; }
+.electrode { fill: #c9c6c0; stroke: #8a8884; stroke-width: 0.006; cursor: pointer; }
+.electrode:hover { fill: #9a978f; }
+.electrode.selected { fill: #ff7a4a; stroke: #d85a2a; stroke-width: 0.008; }
+.electrode.target-ref { fill: #7b6cd9; stroke: #5a4cb8; }
+#widget-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+#widget-status { font-size: 11px; color: #8a8884; min-height: 16px; }

@@ -12,14 +12,17 @@
 
   //fetch a read-only frame at the cursor and distribute it, the active vis mode picks what the server computes
   async function refresh(){
-    if(!hasConsumers()) return;
-    const res = await fetch("/frame", {
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({vis_mode: window.FeatureView ? FeatureView.mode() : "image"})
-    });
-    const f = await res.json();
-    if(!f.error) applyFrame(f);
-  }
+      if(!hasConsumers()) return;
+      const res = await fetch("/frame", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({
+          vis_mode: window.FeatureView ? FeatureView.mode() : "image",
+          delta_mode: window.DecodeView ? DecodeView.deltaMode() : "field"
+        })
+      });
+      const f = await res.json();
+      if(!f.error) applyFrame(f);
+    }
 
   window.Frame = {refresh, applyFrame};
 

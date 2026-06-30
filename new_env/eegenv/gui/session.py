@@ -138,11 +138,16 @@ class Session:
     #frame assembly, the vis payload for the active mode plus the decode payload, computed together
     #====
     #the visualisation payload for one mode, only the active mode's path is computed
-    #image and stack render server-side to a png, harmonic ships the per-window arrays for the canvas
+    #image/stack/raw/operator render server-side to a png, harmonic ships the per-window arrays for the canvas
     def _vis_payload(self, stack, names, mode):
-        from .rendering import render_stack_image
+        from .rendering import render_stack_image, render_raw_computed, render_operator
         if mode in ("image", "stack"):
             return {"mode": mode, "render_url": render_stack_image(self.env, stack, names, mode)}
+        if mode == "raw":
+            return {"mode": mode,
+                    "render_url": render_raw_computed(self.env, self.env.get_raw_window(), stack, names)}
+        if mode == "operator":
+            return {"mode": mode, "render_url": render_operator(self.env)}
         if mode == "harmonic":
             return {"mode": mode,
                     "coeffs": self.env.to_sh_compression(stack),
@@ -151,35 +156,42 @@ class Session:
                     "names": names}
         raise ValueError(f"unknown vis mode: {mode}")
 
-    #the decode payload from a preview, the render plus the per-feature residuals, blank forward fields at stream end
-    def _decode_payload(self, preview, names):
+    #the decode payload from a preview, field mode renders the four-column image, matrix mode renders the
+    #three value columns and ships the (L+1)^2 x F delta matrix for the canvas, residuals blank at stream end
+    def _decode_payload(self, preview, names, delta_mode="field"):
         from .rendering import render_decode_png
-        return {
-            "render_url": render_decode_png(self.env, preview, names),
+        payload = {
+            "delta_mode": delta_mode,
+            "names": names,
             "electrode_residual": preview.electrode_residual,   #none at stream end
             "image_residual": preview.image_residual,           #none at stream end
             "at_end": preview.target_stack is None,
         }
+        if delta_mode == "matrix":
+            payload["render_url"] = render_decode_png(self.env, preview, names, include_delta=False)
+            payload["delta_coeffs"] = preview.delta_coeffs      #none at stream end
+        else:
+            payload["render_url"] = render_decode_png(self.env, preview, names, include_delta=True)
+        return payload
 
     #one decode preview at the cursor drives both panels, its current stack is reused as the vis stack
-    #so the window features are computed once, the decode path always runs since the decode panel always shows
-    def _build_frame(self, vis_mode):
+    def _build_frame(self, vis_mode, delta_mode):
         env = self.env
         names = env.features.enabled_names()
         preview = env.preview_decode_at_cursor(None)        #true delta floor at the cursor
         vis = self._vis_payload(preview.current_stack, names, vis_mode)
-        decode = self._decode_payload(preview, names)
+        decode = self._decode_payload(preview, names, delta_mode)
         return vis, decode
 
     #read-only frame at the cursor, used on load, seek, and edits, advances nothing
-    def frame(self, vis_mode="image"):
-        vis, decode = self._build_frame(vis_mode)
+    def frame(self, vis_mode="image", delta_mode="field"):
+        vis, decode = self._build_frame(vis_mode, delta_mode)
         return {"vis": vis, "decode": decode}
 
     #playback frame, builds at the current window then advances the live stream one window for lag continuity
-    def play_advance(self, vis_mode="image"):
-        vis, decode = self._build_frame(vis_mode)
-        self.env.advance_window_features()                  #progress the live lag, step the cursor on
+    def play_advance(self, vis_mode="image", delta_mode="field"):
+        vis, decode = self._build_frame(vis_mode, delta_mode)
+        self.env.advance_window_features()
         cursor = self.env.window_cursor
         at_end = self.env.at_stream_end
         if at_end:

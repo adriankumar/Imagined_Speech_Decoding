@@ -93,7 +93,8 @@ def frame():
         return jsonify({"error": "no source loaded"}), 400
     body = request.get_json(silent=True) or {}
     try:
-        return jsonify(_jsonable(session.frame(vis_mode=body.get("vis_mode", "image"))))
+        return jsonify(_jsonable(session.frame(
+            vis_mode=body.get("vis_mode", "image"), delta_mode=body.get("delta_mode", "field"))))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -178,7 +179,8 @@ def play_step():
         return jsonify({"error": "no source loaded"}), 400
     body = request.get_json(silent=True) or {}
     try:
-        return jsonify(_jsonable(session.play_advance(vis_mode=body.get("vis_mode", "image"))))
+        return jsonify(_jsonable(session.play_advance(
+            vis_mode=body.get("vis_mode", "image"), delta_mode=body.get("delta_mode", "field"))))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -237,7 +239,7 @@ def main():
         daemon=True).start()
 
     webview.create_window("eeg env diagnostic", "http://127.0.0.1:5000", width=1280, height=820)
-    webview.start()
+    webview.start(debug=False)
 
 
 if __name__ == "__main__":

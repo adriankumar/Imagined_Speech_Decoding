@@ -39,7 +39,7 @@ class EEGEnv:
                  #derivable args but can be specified
                  sfreq=None, #sampling rate of current recording 
                  window_size=500, #window size of EEG for feature image
-                 L_sh_degree=4, #variable that should remain fixed when attached to a model; but chanegable for diagnostics independent of model
+                 L_sh_degree=0, #variable that should remain fixed when attached to a model; but chanegable for diagnostics independent of model
                  f_weights=None, #scalar weights to make feature values of equal magnitude to balance model attention and spherical harmonics coefficients
                  margin=0.9,
                  dtype=np.float64,

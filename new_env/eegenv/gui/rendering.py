@@ -81,16 +81,16 @@ def build_strip_png(env, start, stop, width=1000):
     return "data:image/png;base64," + base64.b64encode(buf.read()).decode("ascii"), n_ch, width
 
 #====================================================================
-#decode simulation, four columns current, delta, decoded, true next, one row per feature
+#decode simulation, current, delta, decoded, true next, one row per feature
+#include_delta False drops the delta column for matrix-delta mode, where the matrix is drawn separately on a canvas
 #====================================================================
 #a placeholder cell for the forward columns at the last window, where no future window exists to decode against
 def _blank_panel(ax, text="end of stream"):
     ax.text(0.5, 0.5, text, ha="center", va="center", fontsize=8, color="#9a978f", transform=ax.transAxes)
 
 #render a decode preview, current and decoded and true-next share a viridis scale per feature
-#delta is a symmetric diverging map centred at zero, at stream end the forward three columns blank
-#takes the preview bundle whole so the one renderer covers the mid-stream and end-of-stream cases
-def render_decode_png(env, preview, names):
+#delta is a symmetric diverging map centred at zero, at stream end the forward columns blank
+def render_decode_png(env, preview, names, include_delta=True):
     before = preview.before_image            #the current window image, always present
     delta = preview.delta_image              #none at stream end
     after = preview.after_image              #none at stream end
@@ -98,8 +98,9 @@ def render_decode_png(env, preview, names):
     has_forward = delta is not None
 
     F = before.shape[2]
-    titles = ["current", "delta", "decoded", "true next"]
-    fig = plt.figure(figsize=(4 * 2.7, F * 2.5), dpi=100)
+    cols = ["current", "delta", "decoded", "true next"] if include_delta else ["current", "decoded", "true next"]
+    ncol = len(cols)
+    fig = plt.figure(figsize=(ncol * 1.9, F * 1.7), dpi=100)
 
     for i in range(F):
         #shared viridis range across the value columns present for this feature
@@ -110,28 +111,65 @@ def render_decode_png(env, preview, names):
         hi = float(max(p.max() for p in viridis_panels))
         dmax = (float(np.abs(delta[:, :, i]).max()) or 1e-9) if has_forward else 1.0
 
-        for j in range(4):
-            ax = fig.add_subplot(F, 4, i * 4 + j + 1)
+        for j, col in enumerate(cols):
+            ax = fig.add_subplot(F, ncol, i * ncol + j + 1)
             if i == 0:
-                ax.set_title(titles[j], fontsize=9)
+                ax.set_title(col, fontsize=9)
             if j == 0:
                 ax.set_ylabel(names[i], fontsize=8)
 
             m = None
-            if j == 0:
+            if col == "current":
                 m = ax.imshow(before[:, :, i], origin="lower", cmap="viridis", vmin=lo, vmax=hi)
             elif not has_forward:
                 _blank_panel(ax)
-            elif j == 1:
+            elif col == "delta":
                 m = ax.imshow(delta[:, :, i], origin="lower", cmap="RdBu_r", vmin=-dmax, vmax=dmax)
-            elif j == 2:
+            elif col == "decoded":
                 m = ax.imshow(after[:, :, i], origin="lower", cmap="viridis", vmin=lo, vmax=hi)
-            else:
+            else:  #true next
                 m = ax.imshow(target[:, :, i], origin="lower", cmap="viridis", vmin=lo, vmax=hi)
 
             ax.set_xticks([]); ax.set_yticks([])
             if m is not None:
                 fig.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
 
-    fig.subplots_adjust(left=0.08, right=0.96, top=0.94, bottom=0.03, wspace=0.30, hspace=0.20)
+    fig.subplots_adjust(left=0.10, right=0.96, top=0.93, bottom=0.04, wspace=0.30, hspace=0.20)
+    return _fig_to_url(fig)
+
+#raw mode, the referenced eeg window beside the computed feature matrix, the features before any interpolation
+#left is channels by time, right is channels by feature, the pre-image stack the decode and image paths both start from
+def render_raw_computed(env, raw_window, stack, names):
+    fig = plt.figure(figsize=(9, 4), dpi=100)
+
+    ax1 = fig.add_subplot(1, 2, 1)
+    m1 = ax1.imshow(raw_window, origin="lower", cmap="viridis", aspect="auto")
+    ax1.set_title("raw window  channels x time", fontsize=9)
+    ax1.set_xlabel("time", fontsize=8); ax1.set_ylabel("channel", fontsize=8)
+    fig.colorbar(m1, ax=ax1, fraction=0.046, pad=0.04)
+
+    ax2 = fig.add_subplot(1, 2, 2)
+    m2 = ax2.imshow(stack, origin="lower", cmap="viridis", aspect="auto")
+    ax2.set_title("computed features  channels x F", fontsize=9)
+    ax2.set_ylabel("channel", fontsize=8)
+    ax2.set_xticks(range(len(names)))
+    ax2.set_xticklabels(names, rotation=45, ha="right", fontsize=8)
+    fig.colorbar(m2, ax=ax2, fraction=0.046, pad=0.04)
+
+    fig.subplots_adjust(left=0.07, right=0.97, top=0.90, bottom=0.20, wspace=0.35)
+    return _fig_to_url(fig)
+
+#operator mode, the interpolation operator M as a coverage field, the summed absolute electrode spread over the grid
+#window-independent, it changes only with margin and image resolution, so it shows margin's spatial reach directly
+def render_operator(env):
+    H, W = env.img_res
+    coverage = np.abs(env.M).sum(axis=1).reshape(H, W)
+
+    fig = plt.figure(figsize=(4, 4), dpi=100)
+    ax = fig.add_subplot(1, 1, 1)
+    m = ax.imshow(coverage, origin="lower", cmap="magma")
+    ax.set_title(f"operator M coverage  (margin {env.margin:.2f})", fontsize=9)
+    ax.set_xticks([]); ax.set_yticks([])
+    fig.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
+    fig.tight_layout()
     return _fig_to_url(fig)

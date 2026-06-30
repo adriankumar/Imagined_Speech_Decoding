@@ -30,11 +30,14 @@
     <!-- recording playback -->
     <section id="panel-playback" class="panel">{% include 'panels/playback.html' %}</section>
 
-    <!-- feature visualisation -->
-    <section id="panel-featviz" class="panel">{% include 'panels/featvis.html' %}</section>
-
-    <!-- decoding simulation -->
-    <section id="panel-decode" class="panel">{% include 'panels/decode.html' %}</section>
+    <!-- visualisation: feature views and decode side by side under one collapsible -->
+    <section id="panel-visual" class="panel container" data-collapsible>
+      <div class="panel-title">visualisation</div>
+      <div class="container-body">
+        <div class="subpanel" id="panel-featviz">{% include 'panels/featvis.html' %}</div>
+        <div class="subpanel" id="panel-decode">{% include 'panels/decode.html' %}</div>
+      </div>
+    </section>
   </div>
 
   <!-- read-only info modal, hidden until opened from the loading panel -->
@@ -47,9 +50,11 @@
   <script src="{{ url_for('static', filename='panels/info.js') }}"></script>
   <script src="{{ url_for('static', filename='panels/loading.js') }}"></script>
   <script src="{{ url_for('static', filename='panels/channels.js') }}"></script>
-  <!-- stage 6: panels/controls.js, panels/geometry.js -->
-  <!-- stage 7: panels/playback.js -->
-  <!-- stage 8: panels/sh_plots.js, panels/featvis.js -->
-  <!-- stage 9: panels/decode.js -->
+  <script src="{{ url_for('static', filename='panels/controls.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/geometry.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/playback.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/sh_plots.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/featvis.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/decode.js') }}"></script>
 </body>
 </html>
