@@ -3,48 +3,58 @@
 <head>
   <meta charset="utf-8">
   <title>eeg env diagnostic</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='layout.css') }}">
-  <!-- panel styles, one line per panel -->
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/loading.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/information.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/featvis.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/sh.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/decode.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/geometry.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/controls.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/channels.css') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='panels/playback.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
 </head>
 <body>
   <header id="topbar">eeg env diagnostic</header>
 
   <div id="grid">
-    <!-- panels -->
-    <section id="panel-load" class="panel" data-collapsible>{% include 'panels/loading.html' %}</section>
-    <section id="panel-info" class="panel" data-collapsible>{% include 'panels/information.html' %}</section>
-    <section id="panel-channels" class="panel" data-collapsible>{% include 'panels/channels.html' %}</section>
-    <section id="panel-controls" class="panel" data-collapsible>{% include 'panels/controls.html' %}</section>
-    <section id="panel-geometry" class="panel" data-collapsible>{% include 'panels/geometry.html' %}</section>
+    <!-- source: loading and channels under one collapsible, internally separate subpanels -->
+    <section id="panel-source" class="panel container" data-collapsible>
+      <div class="panel-title">source</div>
+      <div class="container-body">
+        <div class="subpanel">{% include 'panels/loading.html' %}</div>
+        <div class="subpanel">{% include 'panels/channels.html' %}</div>
+      </div>
+    </section>
+
+    <!-- features: feature stack controls and geometry under one collapsible -->
+    <section id="panel-features" class="panel container" data-collapsible>
+      <div class="panel-title">feature stack &amp; geometry</div>
+      <div class="container-body">
+        <div class="subpanel">{% include 'panels/controls.html' %}</div>
+        <div class="subpanel">{% include 'panels/geometry.html' %}</div>
+      </div>
+    </section>
+
+    <!-- recording playback -->
     <section id="panel-playback" class="panel">{% include 'panels/playback.html' %}</section>
-    <section id="panel-featviz" class="panel">{% include 'panels/featvis.html' %}</section>
-    <section id="panel-sh" class="panel">{% include 'panels/sh.html' %}</section>
-    <section id="panel-decode" class="panel">{% include 'panels/decode.html' %}</section>
+
+    <!-- visualisation: feature views and decode side by side under one collapsible -->
+    <section id="panel-visual" class="panel container" data-collapsible>
+      <div class="panel-title">visualisation</div>
+      <div class="container-body">
+        <div class="subpanel" id="panel-featviz">{% include 'panels/featvis.html' %}</div>
+        <div class="subpanel" id="panel-decode">{% include 'panels/decode.html' %}</div>
+      </div>
+    </section>
   </div>
+
+  <!-- read-only info modal, hidden until opened from the loading panel -->
+  {% include 'panels/info_modal.html' %}
 
   <!-- orchestration first, then panels register against it -->
   <script src="{{ url_for('static', filename='main.js') }}"></script>
   <script src="{{ url_for('static', filename='collapse.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/loading.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/information.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/featvis.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/controls.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/channels.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/sh_plots.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/sh.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/decode.js') }}"></script>
-  <script src="{{ url_for('static', filename='panels/geometry.js') }}"></script>
   <script src="{{ url_for('static', filename='frame.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/info.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/loading.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/channels.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/controls.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/geometry.js') }}"></script>
   <script src="{{ url_for('static', filename='panels/playback.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/sh_plots.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/featvis.js') }}"></script>
+  <script src="{{ url_for('static', filename='panels/decode.js') }}"></script>
 </body>
 </html>

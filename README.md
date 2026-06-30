@@ -1,19 +1,15 @@
-How to run:
-- Run at Root directory: `python -m EEGEnv.gui.app`
+# How to run:
+- Ensure to check `requirements.txt` for current dependencies
+- Run at Root directory: `python -m eegenv.gui.app`
 
 ---
-
-Ensure to check `requirements.txt` for current dependencies
-
 ---
-TODO
-- move geomtry controls and feature stack as one widget for saving space so that there isnt such a huge gap or space taken for the controls; perhaps dynamic placement mechancisms?
+### TODO
+- Decode simulation, measure losses as raw pixels and other alternative heatmap specific losses and have the loss computed live as a value to certify the accuracy of the metric(s) itself
 
-- Add spherical harmonics visualisation (not sure if bases are relevant here; can use the sh sandbox for that?), Y matrix visualisation, and reconstruction from electrode count; Fix the module's spherical harmonic computation
+- Allow upload of other EEG file types (pickle, etc., but only ones that fit the meta-data extraction process of the current module; will extend file reading types but keep minimal compute)
 
-- Decode simulation, measure losses as raw pixels and other alternative heatmap specific losses, compute forward window's sh coeffs, subtract from current window to get true delta, and have the loss computed live as a value to certify the accuracy of the metric itself
-
-- need massive renaming and cleaning of functions and variables
+- Extend module as a `DataLoader` for batched files for training
 
 - github.io considerations? like a demo
 ---

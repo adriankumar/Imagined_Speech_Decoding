@@ -1,22 +1,17 @@
 <div class="panel-title">loading</div>
 
-<div class="ld-row">
-  <button id="ld-pick" class="seg">choose edf...</button>
-  <span id="ld-file" class="ld-file">no file</span>
-</div>
-
-<div class="ld-row">
+<div class="ld-row ld-meta">
   <span class="ld-label">montage</span>
   <select id="ld-montage"></select>
-</div>
-
-<div class="ld-row">
   <span class="ld-label">source ref</span>
   <input id="ld-ref" type="text" value="average" class="ld-ref">
 </div>
 
-<div class="ld-row">
-  <button id="ld-load" class="seg">load</button>
+<div class="ld-row ld-actions">
+  <button id="ld-pick" class="seg">choose edf...</button>
+  <span id="ld-file" class="ld-file">no file</span>
+  <button id="ld-load" class="seg" disabled>load</button>
+  <button id="ld-info" class="seg" disabled>info</button>
   <span id="ld-status" class="ld-status"></span>
 </div>
 

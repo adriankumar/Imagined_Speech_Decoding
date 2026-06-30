@@ -1,1 +1,1 @@
-from .mod import EEGEnv, UnresolvedChannelsError, MNE_MONTAGES
+from .mod import EEGEnv, ceiling_degree, recommend_degree

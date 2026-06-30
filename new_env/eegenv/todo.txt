@@ -1,4 +1,0 @@
-- Make test script to see if code runs; fix any residual bugs
-- Add visualisation functions
-- Re-create simplified and refined GUI for diagnostics
-- Start spherical harmonics research doc for connor

@@ -1,0 +1,236 @@
+/* dark theme palette, lighter panel surfaces keep panels distinct, accent orange for active states */
+:root {
+  --bg: #1a1a1c;          /* page background */
+  --panel: #232327;       /* panel surface, lighter than the page */
+  --panel-2: #2c2c32;     /* inputs and subtle raised surfaces */
+  --border: #3a3a40;
+  --text: #ecebef;        /* near white */
+  --text-dim: #9a96a2;    /* secondary labels */
+  --title: #c77dff;       /* luminous magenta for titles */
+  --accent: #ff9e5a;      /* light orange, active buttons and sliders */
+  --warn: #ff8a6a;
+  --vis-max: 760px;       /* fixed display width for every visualisation image */
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  color: var(--text);
+  background: var(--bg);
+  text-shadow: 0 0 0.6px rgba(236, 235, 239, 0.25);   /* faint white glow on all text */
+}
+
+#topbar {
+  padding: 10px 16px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 12px;
+  color: var(--title);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  text-shadow: 0 0 8px rgba(199, 125, 255, 0.5);
+}
+
+/* grid, the wide panels stacked full width */
+#grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 12px;
+  padding: 12px;
+}
+#panel-source   { grid-column: 1 / 13; }
+#panel-features { grid-column: 1 / 13; }
+#panel-playback { grid-column: 1 / 13; }
+#panel-visual   { grid-column: 1 / 13; }
+
+/* panel chrome */
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+}
+.panel-title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--title);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-shadow: 0 0 7px rgba(199, 125, 255, 0.45);
+}
+
+/* collapse: hide everything under a collapsed panel except its title */
+.panel.collapsed > *:not(.panel-title) { display: none; }
+.collapse-caret {
+  border: none;
+  background: none;
+  cursor: pointer;
+  font-size: 11px;
+  color: var(--title);
+  padding: 0;
+  line-height: 1;
+}
+
+/* container, two subpanels side by side */
+.container-body { display: flex; gap: 16px; align-items: flex-start; }
+.container-body .subpanel { flex: 1 1 0; min-width: 0; }
+@media (max-width: 700px) { .container-body { flex-direction: column; } }
+
+/* segmented buttons, white highlight on hover, light orange when active */
+.seg {
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--text);
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.seg:hover:not(:disabled) { border-color: #ffffff; background: #34343b; }
+.seg.on {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+  text-shadow: none;
+  box-shadow: 0 0 8px rgba(255, 158, 90, 0.45);
+}
+.seg:disabled { opacity: 0.4; cursor: default; }
+
+/* sliders track the accent orange */
+input[type=range] { accent-color: var(--accent); height: 4px; }
+
+/* form inputs */
+select, input[type=text], input[type=number] {
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 5px; padding: 4px 6px; font-size: 12px;
+}
+
+/* locked, controls go read-only during playback */
+.locked { opacity: 0.45; pointer-events: none; }
+
+/* loading panel */
+.ld-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.ld-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.ld-ref { width: 110px; }
+.ld-file { font-size: 12px; color: var(--text-dim); font-style: italic; min-width: 60px; }
+.ld-status { font-size: 11px; color: var(--text-dim); }
+
+/* blanks */
+.ch-blank, .ctrl-blank, .geo-blank, .pb-blank, .fv-blank, .dec-blank, .sh-blank, .info-blank {
+  font-size: 12px; color: var(--text-dim); font-style: italic; padding: 6px 0;
+}
+
+/* channels summary */
+.ch-actions { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.ch-summary { font-size: 12px; line-height: 1.7; }
+.ch-key { color: var(--text-dim); display: inline-block; min-width: 130px; }
+
+/* modal scaffold, shared by the unresolved modal and the info modal */
+.ld-modal, .modal {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  align-items: center; justify-content: center;
+  z-index: 50;
+}
+.ld-modal-box, .modal-box {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px 18px;
+  min-width: 320px;
+  max-width: 560px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
+}
+.ld-modal-head, .modal-head {
+  font-weight: 600; margin-bottom: 10px; color: var(--text);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.ld-modal-list { font-size: 12px; color: var(--text-dim); margin-bottom: 12px; line-height: 1.6; }
+.ld-modal-actions, .modal-actions { display: flex; gap: 8px; }
+.modal-close { border: none; background: none; cursor: pointer; color: var(--text-dim); font-size: 12px; }
+
+/* info modal body */
+.info-body { max-height: 60vh; overflow-y: auto; }
+.info-row {
+  display: flex; justify-content: space-between; gap: 16px;
+  padding: 3px 0; font-size: 12px; border-bottom: 1px solid var(--border);
+}
+.info-row span:first-child { color: var(--text-dim); }
+.info-row span:last-child { text-align: right; color: var(--text); }
+
+/* feature controls grid, four base columns, lag under base, weight under each name */
+.ctrl-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 14px; }
+.ctrl-col { display: flex; flex-direction: column; gap: 8px; }
+.ctrl-feat { display: flex; flex-direction: column; gap: 3px; }
+.ctrl-feat label { font-size: 12px; display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.ctrl-feat input[type=number] { width: 100%; border-radius: 4px; padding: 3px 5px; }
+.ctrl-lag label { color: var(--text-dim); }
+.ctrl-disabled { opacity: 0.45; }
+
+/* geometry rows */
+.geo-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.geo-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; min-width: 120px; }
+.geo-sub { font-size: 11px; color: var(--text-dim); margin: 2px 0 8px; }
+.geo-mval { font-size: 12px; color: var(--text-dim); min-width: 30px; }
+
+/* playback controls */
+.pb-controls { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+.pb-zoom, .pb-ws-ctrl { display: flex; align-items: center; gap: 6px; }
+.pb-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+.pb-ws-ctrl input[type=number] { width: 80px; }
+.pb-ws-status { font-size: 11px; color: var(--warn); }
+
+/* recording strip, full width to span the timeline */
+.strip-wrap {
+  position: relative; width: 100%; height: 140px; overflow: hidden;
+  border: 1px solid var(--border); border-radius: 4px; cursor: pointer; user-select: none;
+}
+.strip-raster { width: 100%; height: 100%; display: block; image-rendering: pixelated; }
+.strip-window {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
+  background: rgba(255, 255, 255, 0.16);
+  border-left: 1px solid rgba(255, 255, 255, 0.7); border-right: 1px solid rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+.strip-line {
+  position: absolute; top: 0; bottom: 0; left: 0; width: 2px;
+  background: var(--accent); box-shadow: 0 0 6px rgba(255, 158, 90, 0.7); pointer-events: none;
+}
+.strip-wrap.locked { cursor: default; }
+.strip-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+/* visualisation surfaces, fixed width via --vis-max, native pixel size never upscaled */
+.fv-toolbar, .dec-toolbar { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+.dec-label { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em; }
+
+#fv-img, #dec-img {
+  display: block;
+  max-width: var(--vis-max);
+  height: auto;
+}
+/* the harmonic system canvas spans the panel and is not capped to the image width */
+#fv-canvas { display: block; width: 100%; margin-top: 8px; }
+
+/* electrode selector popup, dark background and white text to match, electrode fills stay as set in js */
+.widget-body { padding: 12px; background: var(--bg); }
+#widget-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+#widget-title {
+  font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--title); text-shadow: 0 0 7px rgba(199, 125, 255, 0.45);
+}
+#selection-count { font-size: 11px; color: var(--text-dim); }
+#electrode-svg { width: 100%; height: 380px; border: 1px solid var(--border); border-radius: 6px; background: var(--panel); }
+.electrode { fill: #c9c6c0; stroke: #8a8884; stroke-width: 0.006; cursor: pointer; }
+.electrode:hover { fill: #9a978f; }
+.electrode.selected { fill: #ff9e5a; stroke: #d8702a; stroke-width: 0.008; }
+.electrode.target-ref { fill: #b48bff; stroke: #8a6cdb; }
+#widget-actions { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+#widget-status { font-size: 11px; color: var(--text-dim); min-height: 16px; }

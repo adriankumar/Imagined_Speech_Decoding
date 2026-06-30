@@ -1,84 +1,64 @@
-//feature stack controls: base toggles and weights, ema accumulation, 
-//every edit posts to /set, the panel rebuilds from the snapshot, locks itself during playback
+//feature stack controls: the eight features as base-above-lag columns, a weight under each name, every edit posts to /set
+//a lag depends on its base: the panel disables a lag whose base is off, and turning a base off cascades its lag off
 (function(){
-  //the eight base features the constructor exposes, in panel order
-  const BASE = ["raw", "median", "iqr", "mobility", "complexity", "raw_lag", "median_lag", "iqr_lag"];
-  //the five base features that support ema accumulation
-  const ACCUM = ["raw", "median", "iqr", "mobility", "complexity"];
+  //base features in column order, each paired with the lag that sits directly beneath it
+  const BASES = ["median", "iqr", "mobility", "complexity"];
+  const LAG = {median: "median_lag", iqr: "iqr_lag", mobility: "mobility_lag", complexity: "complexity_lag"};
 
   function el(id){ return document.getElementById(id); }
 
-  //post a single named edit, the response is the new snapshot which redraws every panel
+  //post a single named edit, the response snapshot redraws every panel
+  //on a rejected edit resync from the env so an optimistic checkbox never lies about the real state
   async function setArg(name, value){
     const res = await fetch("/set", {
       method:"POST", headers:{"Content-Type":"application/json"},
       body: JSON.stringify({name, value})
     });
     const snap = await res.json();
-    if(snap.error){ return; }
-    GUI.apply(snap);  //push the fresh snapshot through the registry without an extra fetch
+    if(snap.error){ GUI.refresh(); return; }
+    GUI.apply(snap);
   }
 
-  //a checkbox row with a numeric weight field, used for the base features
-  function toggleWeightRow(name, on, weight){
-    return `<div class="ctrl-row">
-      <label><input type="checkbox" data-toggle="${name}" ${on ? "checked" : ""}> ${name}</label>
-      <input type="number" step="0.1" min="0" data-weight="${name}" value="${weight.toFixed(4)}">
+  //a feature unit, the name with its toggle and the weight directly beneath, weight shown to two decimals
+  function featUnit(name, on, weight, disabled){
+    return `<div class="ctrl-feat${disabled ? " ctrl-disabled" : ""}">
+      <label><input type="checkbox" data-toggle="${name}" ${on ? "checked" : ""} ${disabled ? "disabled" : ""}> ${name}</label>
+      <input type="number" step="0.01" min="0" data-weight="${name}" value="${(+weight).toFixed(2)}" ${disabled ? "disabled" : ""}>
     </div>`;
   }
 
-  //a checkbox row with an alpha slider, used for the ema accumulation features
-  function accumRow(name, on, alpha){
-    return `<div class="ctrl-row">
-      <label><input type="checkbox" data-accum="${name}" ${on ? "checked" : ""}> ${name}</label>
-      <input type="range" min="0.01" max="1" step="0.01" data-alpha="${name}" value="${alpha}">
-      <span class="ctrl-val" data-alphaval="${name}">${(+alpha).toFixed(2)}</span>
+  //a column, the base unit above its lag unit, the lag greyed and disabled while the base is off
+  function column(base, t, w){
+    const lag = LAG[base];
+    return `<div class="ctrl-col">
+      ${featUnit(base, t[base], w[base], false)}
+      ${featUnit(lag, t[lag], w[lag], !t[base])}
     </div>`;
   }
 
-  //build the whole panel from the snapshot's feature state
   function render(snap){
-    const f = snap.features
-    const base = BASE.map(n => toggleWeightRow(n, f.toggle[n], f.weight[n])).join("");
-    const accum = ACCUM.map(n => accumRow(n, f.accum[n], f.alpha[n])).join("");
-
-    el("ctrl-body").innerHTML = `
-      <div class="ctrl-section">
-        <div class="ctrl-head">base features</div>${base}
-      </div>
-      <div class="ctrl-section">
-        <div class="ctrl-head">ema accumulation</div>${accum}
-      </div>`;
-
+    const t = snap.features.toggles, w = snap.features.weights;
+    el("ctrl-body").innerHTML = `<div class="ctrl-grid">${BASES.map(b => column(b, t, w)).join("")}</div>`;
     el("ctrl-body").classList.toggle("locked", !!snap.locked);
-    wire(snap);
+    wire();
   }
 
-  //attach handlers after each rebuild, reading the current dom state into the right /set payload
-  function wire(snap){
+  //attach handlers after each rebuild
+  function wire(){
     const body = el("ctrl-body");
-
     body.querySelectorAll("[data-toggle]").forEach(cb =>
-      cb.addEventListener("change", () => setArg("feature_toggle", {[cb.dataset.toggle]: cb.checked})));
-
+      cb.addEventListener("change", () => onToggle(cb.dataset.toggle, cb.checked)));
     body.querySelectorAll("[data-weight]").forEach(inp =>
       inp.addEventListener("change", () => setArg("feature_weight", {[inp.dataset.weight]: parseFloat(inp.value)})));
+  }
 
-    //an ema toggle and its alpha commit together so change_feature_accum gets a coherent pair
-    body.querySelectorAll("[data-accum]").forEach(cb =>
-      cb.addEventListener("change", () => {
-        const name = cb.dataset.accum;
-        const alpha = parseFloat(body.querySelector(`[data-alpha="${name}"]`).value);
-        setArg("feature_accum", {accum: {[name]: cb.checked}, alpha: {[name]: alpha}});
-      }));
-    body.querySelectorAll("[data-alpha]").forEach(rng =>
-      rng.addEventListener("input", () => body.querySelector(`[data-alphaval="${rng.dataset.alpha}"]`).textContent = (+rng.value).toFixed(2)));
-    body.querySelectorAll("[data-alpha]").forEach(rng =>
-      rng.addEventListener("change", () => {
-        const name = rng.dataset.alpha;
-        const on = body.querySelector(`[data-accum="${name}"]`).checked;
-        setArg("feature_accum", {accum: {[name]: on}, alpha: {[name]: parseFloat(rng.value)}});
-      }));
+  //turning a base off would orphan its lag, so cascade the lag off in the same commit to satisfy the dependency
+  function onToggle(name, checked){
+    if(name in LAG && !checked){
+      setArg("feature_toggle", {[name]: false, [LAG[name]]: false});
+    } else {
+      setArg("feature_toggle", {[name]: checked});
+    }
   }
 
   //snapshot-driven: build when loaded, blank when not loaded or stale

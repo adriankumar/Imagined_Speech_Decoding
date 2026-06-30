@@ -1,6 +1,0 @@
-/* spherical harmonics panel */
-.sh-blank{color:#cfccc5;font-style:italic}
-.sh-toolbar{display:flex;gap:6px;margin-bottom:8px}
-.sh-featsel{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
-.sh-feat{font-size:11px}
-#sh-canvas{display:block;width:100%;border:1px solid #e9e6e1;border-radius:4px;background:#fff}

@@ -1,5 +1,0 @@
-/* feature visualisation panel */
-.fv-controls{display:flex;gap:6px;margin-bottom:8px}
-#fv-body{display:flex;justify-content:center;align-items:flex-start}
-.fv-blank{color:#cfccc5;font-style:italic}
-#fv-img{max-width:100%;height:auto;display:block}

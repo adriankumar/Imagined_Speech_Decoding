@@ -1,9 +1,15 @@
-//local selection set, channel names only, committed on action button press
+//electrode selector popup: draw the resolved electrodes at their 2d positions, click to select, commit an action
+//reads the running app's snapshot for positions and the current target re-reference, posts the selection back
+//the same server backs this window, so committing re-resolves through the env and the main window's poll picks it up
 let selected = new Set();
 let snapshot = null;
 
-//fetch the current state from the main flask app to get electrode positions
+//context-aware header so the popup states what the selection is for
+const TITLES = {exclude: "select electrodes to exclude", reference: "select target re-reference electrodes"};
+
+//fetch the current state from the main flask app to get electrode positions and the current reference
 async function loadState() {
+    document.getElementById("widget-title").textContent = TITLES[ACTION_CONTEXT] || "select electrodes";
     const response = await fetch("/state");
     snapshot = await response.json();
     if (!snapshot.loaded) {
@@ -14,7 +20,7 @@ async function loadState() {
     renderActions();
 }
 
-//draw electrodes, clicking toggles selection, already-target-ref channels shown in purple
+//draw electrodes, clicking toggles selection, channels in the current target re-reference shown in purple
 function renderSvg() {
     const svg = document.getElementById("electrode-svg");
     svg.innerHTML = "";
@@ -30,7 +36,7 @@ function renderSvg() {
         const r = Math.sqrt(x * x + y * y);
         if (r > maxR) maxR = r;
     }
-    const scale = 1.0 / maxR;
+    const scale = maxR > 0 ? 1.0 / maxR : 1.0;
 
     for (let i = 0; i < positions.length; i++) {
         const name = names[i];
@@ -44,7 +50,7 @@ function renderSvg() {
         c.setAttribute("r", 0.035);
         c.dataset.name = name;
 
-        //set visual class: selected > target-ref > default, in priority order
+        //visual class priority: selected, then target-ref, then default
         if (selected.has(name)) {
             c.setAttribute("class", "electrode selected");
         } else if (refSet.has(name)) {
@@ -82,11 +88,11 @@ function renderActions() {
         addButton(actions, "reset exclusions", () => commitAction("reset"), false);
     }
     if (ACTION_CONTEXT === "reference") {
-        addButton(actions, "set as reference target", () => commitAction("reference"), true);
-        addButton(actions, "use average reference", () => commitAction("average"), false);
+        addButton(actions, "set target re-reference", () => commitAction("reference"), true);
+        addButton(actions, "use average", () => commitAction("average"), false);
     }
 
-    //clear selection button always present
+    //clear selection is always available
     addButton(actions, "clear selection", () => {
         selected.clear();
         renderSvg();
@@ -96,6 +102,7 @@ function renderActions() {
 
 function addButton(parent, label, handler, requiresSelection) {
     const btn = document.createElement("button");
+    btn.className = "seg";
     btn.textContent = label;
     btn.dataset.requiresSelection = requiresSelection;
     btn.disabled = requiresSelection && selected.size === 0;
@@ -106,13 +113,13 @@ function addButton(parent, label, handler, requiresSelection) {
 
 function updateCount() {
     document.getElementById("selection-count").textContent = `${selected.size} selected`;
-    //update disabled state on buttons that require a selection
+    //update the disabled state on buttons that require a selection
     for (const btn of document.querySelectorAll("#widget-actions button[data-requires-selection='true']")) {
         btn.disabled = selected.size === 0;
     }
 }
 
-//post the current selection and action type to the backend, close on success
+//post the current selection and action type to the backend, python closes this window on success
 async function commitAction(action) {
     const status = document.getElementById("widget-status");
     status.textContent = "applying...";
@@ -127,17 +134,18 @@ async function commitAction(action) {
         });
         const data = await response.json();
         if (!response.ok) {
+            //the env refused, e.g. a re-reference clash or a harmonic-capacity violation, the window stays open
             status.textContent = "error: " + (data.message || "unknown");
             return;
         }
-        //python closes this window after responding, nothing to do here
+        //python closes this window after responding, the main window's poll reflects the change
         status.textContent = "done";
     } catch (err) {
         status.textContent = "request failed: " + err.message;
     }
 }
 
-//pywebview and plain-browser fallback, same pattern as main page
+//pywebview and plain-browser fallback, same pattern as the main page
 window.addEventListener("pywebviewready", loadState);
 if (!window.pywebview) {
     setTimeout(() => { if (!snapshot) loadState(); }, 200);

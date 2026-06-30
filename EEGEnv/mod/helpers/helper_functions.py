@@ -9,6 +9,9 @@ def _lowercase_key(name):
 #------------
 #excluded chans (provided_list) that are specified but dont exist in the inferred channels are dropped
 def remove_nonex_chns(provided_list, true_list):
+    if not provided_list:  #none or empty, nothing specified to reconcile
+        return []
+    
     true_chns = {_lowercase_key(s) for s in true_list}
     exists = [c for c in provided_list if _lowercase_key(c) in true_chns]
     dropped = [c for c in provided_list if c not in exists]
@@ -16,7 +19,7 @@ def remove_nonex_chns(provided_list, true_list):
     if dropped:
         print(f"Warning: excluded channels {provided_list} not found in the current source were dropped: {dropped}")
     
-    return exists#lowercase dictionary as key of electrode name, with canoninical name as value
+    return exists #lowercase dictionary as key of electrode name, with canoninical name as value
 
 #get the channel names used in montage standard to compare against the meta data of the recording
 def _get_montage_channels(montage_name):
