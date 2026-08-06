@@ -72,7 +72,7 @@ class EEGEnv:
     #meta data extraction
     #====
     def _get_channel_names(self, raw):
-        return raw.ch_names
+        return [name.rstrip(".") for name in raw.ch_names]
 
     def _get_sampling_rate(self, raw):
         return raw.info['sfreq']
