@@ -1,0 +1,32 @@
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden;font-family:"Segoe UI",system-ui,sans-serif;color:#2b2926}
+body{display:flex;flex-direction:column}
+
+#topbar{flex:0 0 auto;height:46px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6b6a66;background:#faf9f7;border-bottom:1px solid #e9e6e1}
+#meta{font-weight:400;letter-spacing:.02em;text-transform:none;font-variant-numeric:tabular-nums}
+
+#content{flex:1 1 auto;display:flex;min-height:0}
+
+#sidebar{flex:0 0 300px;display:flex;flex-direction:column;background:#fff;border-right:1px solid #e9e6e1;padding:12px 14px;min-height:0}
+.side-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9a978f}
+#matrix{flex:1 1 auto;min-height:0;display:block;cursor:pointer;border:1px solid #efece7;border-radius:4px}
+.side-cap{margin-top:8px;font-size:10px;color:#9a978f;line-height:1.5}
+
+#stage{flex:1 1 auto;position:relative;min-height:0;display:flex;flex-direction:column}
+
+#controls{flex:0 0 auto;display:flex;flex-wrap:wrap;align-items:center;gap:8px 16px;padding:10px 20px;background:#fff;border-bottom:1px solid #e9e6e1}
+.group{display:flex;align-items:center;gap:6px}
+.label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#9a978f}
+.seg{font:inherit;font-size:12px;padding:5px 11px;border:1px solid #d8d4cd;background:#fff;color:#4a4843;border-radius:6px;cursor:pointer}
+.seg:hover{background:#f3f1ed}
+.seg.on{background:#2b2926;color:#fff;border-color:#2b2926}
+#readout{flex:1 1 100%;font-size:12px;color:#6b6a66;font-variant-numeric:tabular-nums}
+.mode-tag{font-weight:600;color:#2b2926;padding-right:10px}
+
+#canvas-wrap{flex:1 1 auto;min-height:0;position:relative}
+#canvas-wrap canvas{display:block}
+
+/* #cbar{position:absolute;top:62px;right:16px;z-index:5;pointer-events:none;display:flex;flex-direction:column;align-items:center;gap:4px;background:rgba(255,255,255,.85);border:1px solid #e9e6e1;border-radius:8px;padding:8px}
+.cbar-grad{width:14px;height:120px;border-radius:3px;background:linear-gradient(to bottom, #3b6fd0, #f2f0ec, #d04a3b)}
+.cbar-end{font-size:12px;color:#6b6a66;line-height:1}
+.cbar-mag{font-size:10px;color:#9a978f;margin-top:2px;font-variant-numeric:tabular-nums} */

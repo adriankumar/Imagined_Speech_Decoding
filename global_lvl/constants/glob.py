@@ -33,4 +33,4 @@ MARGIN = 0.95 #for img interpol
 DROPOUT = 0.2
 
 DEFAULT_CMAP = "inferno"
-DELTA_CMAP = "RdBu_r"
+DELTA_CMAP = "RdBu"

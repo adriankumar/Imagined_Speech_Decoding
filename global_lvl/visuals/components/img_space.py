@@ -7,7 +7,7 @@ def img_transform_fig(M, img_dims, subtitle=None):
     H, W = img_dims
     coverage = np.abs(M).sum(axis=1).reshape(H, W)  #abs, not signed — signed is ~1 everywhere
     fig, ax = plt.subplots(figsize=(5.5, 5.5))
-    m = ax.imshow(coverage, origin="lower", cmap="nipy_spectral_r")
+    m = ax.imshow(coverage, origin="lower", cmap="Spectral")
     ax.set_xticks([]); ax.set_yticks([])
     fig.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
 

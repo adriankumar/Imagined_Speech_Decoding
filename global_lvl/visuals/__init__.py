@@ -1,1 +1,1 @@
-from .components import (basis_matrix_fig, img_transform_fig)
+from .components import (basis_matrix_fig, img_transform_fig, view_basis_sphere)

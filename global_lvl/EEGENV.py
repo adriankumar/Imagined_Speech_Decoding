@@ -148,9 +148,7 @@ class EEGEnv:
 
     #-------- viewers --------
     def view_coeff_decoder(self):
-        if self.basis_matrix is None:
-            print(f"Cannot view coeff decoder when there is no SH component in this EEGEnv instantiation")
-            return 
+        self._require_sh()
         
         import matplotlib.pyplot as plt #lazy import
         basis_matrix_fig(Y=self.basis_matrix, subtitle=f"Coefficient Decoder/Basis Matrix Y | coeffs={self.total_coeffs} x nchns={self.num_channels}")
@@ -160,7 +158,21 @@ class EEGEnv:
         import matplotlib.pyplot as plt 
         img_transform_fig(M=self.img_transform, img_dims=self.img_dims, subtitle="Electrode-to-Image Operator")
         plt.show()
-    
+
+    #interactive view of the basis; each row of Y is one mode, rendered as the
+    #continuous Y_lm it samples, with the electrodes drawn as that row's columns
+    def view_basis_sphere(self, n_theta=48, n_phi=96):
+        self._require_sh()
+ 
+        from .visuals.components.sh_space import view_basis_sphere #lazy import
+ 
+        coords = self.spherical_coords
+        view_basis_sphere(Y=self.basis_matrix,
+                          thetas=coords["thetas"],
+                          phis=coords["phis"],
+                          n_theta=n_theta,
+                          n_phi=n_phi,
+                          subtitle=f"Basis Matrix Y | L={self.basis_degree} | coeffs={self.total_coeffs} x nchns={self.num_channels}")
     #-------- mutation, diagnostics only --------
     def change_L(self, L_degree):
         self._require_sh()

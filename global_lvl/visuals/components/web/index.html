@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>spherical harmonic basis</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="topbar">
+    <span>spherical harmonic basis</span>
+    <span id="meta"></span>
+  </header>
+
+  <div id="content">
+    <aside id="sidebar">
+      <div class="side-head"><span>basis matrix Y</span><span id="dims"></span></div>
+      <canvas id="matrix"></canvas>
+      <div class="side-cap">rows are modes, columns are electrodes &middot; click a row</div>
+    </aside>
+
+    <main id="stage">
+      <div id="controls">
+        <div class="group">
+          <span class="label">render</span>
+          <button id="btn-blob" class="seg">blob</button>
+          <button id="btn-sphere" class="seg on">sphere</button>
+        </div>
+        <div class="group">
+          <span class="label">show</span>
+          <button id="btn-nodes" class="seg on">nodes</button>
+          <button id="btn-pts" class="seg on">electrodes</button>
+        </div>
+        <div class="group">
+          <span class="label">mode</span>
+          <button id="btn-prev" class="seg">&larr;</button>
+          <button id="btn-next" class="seg">&rarr;</button>
+        </div>
+        <div id="readout"></div>
+      </div>
+
+      <div id="canvas-wrap"></div>
+
+      <div id="cbar">
+        <span class="cbar-end">+</span>
+        <div class="cbar-grad"></div>
+        <span class="cbar-end">&minus;</span>
+        <div class="cbar-mag" id="cbar-mag"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="vendor/three.min.js"></script>
+  <script src="vendor/OrbitControls.js"></script>
+  <script src="sphere.js"></script>
+</body>
+</html>

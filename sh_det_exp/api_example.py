@@ -7,7 +7,7 @@ from .data_cache import load_caches
 #================loading dataset================
 ds = load_caches() #returns a dict; with keys "1", "2", 3"
 
-ds_num = 1 #choose a dataset from 1-3
+ds_num = 3 #choose a dataset from 1-3
 sample = ds[str(ds_num)] #the dict for the current sample
 
 print(f"sample keys: {sample.keys()}\n")
@@ -118,4 +118,5 @@ for i, (ft, using) in enumerate(declared_features.items()):
 #================Visuals================
 DetEnv.view_coeff_decoder()
 DetEnv.view_img_transform()
+DetEnv.view_basis_sphere()
 #================================================

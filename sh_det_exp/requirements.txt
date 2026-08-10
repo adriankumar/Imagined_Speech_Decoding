@@ -3,4 +3,5 @@ numpy
 matplotlib
 mne
 scipy
+pywebview
 
