@@ -1,0 +1,6 @@
+#python3.10
+numpy
+matplotlib
+mne
+scipy
+

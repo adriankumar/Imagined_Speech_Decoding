@@ -1,1 +1,0 @@
-from .qv1 import QNetworkv1 as QV1
