@@ -5,7 +5,7 @@
 2. Run an example script from outside this directory as `python -m sh_det_exp.<script>`; i.e:
 
 ```
-python -m sh_det.api_usecase
+python -m sh_det.api_example
 ```
 
 ---
