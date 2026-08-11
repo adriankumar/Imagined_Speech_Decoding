@@ -173,6 +173,103 @@ class EEGEnv:
                           n_theta=n_theta,
                           n_phi=n_phi,
                           subtitle=f"Basis Matrix Y | L={self.basis_degree} | coeffs={self.total_coeffs} x nchns={self.num_channels}")
+
+    #one scalar per feature, e.g. a loss or a score
+    def view_metric_bar(self, values, metric_name="metric", feature_names=None, subtitle=None,
+                        scale=1.0, norm=False, save=False, save_path=None, file_name="metric.png"):
+
+        import matplotlib.pyplot as plt #lazy import
+        from .visuals.metrics import metric_bar_fig, save_fig, DEFAULT_SAVE_PATH
+ 
+        fig = metric_bar_fig(values=values,
+                             feature_names=feature_names or self.toggled_features,
+                             metric_name=metric_name,
+                             subtitle=subtitle,
+                             scale=scale,
+                             norm=norm)
+ 
+        if save:
+            save_fig(fig, save_path or DEFAULT_SAVE_PATH, file_name)
+
+        plt.show()
+ 
+    #electrode-space panels; expects (n_chns, F) for both
+    def view_electrode_fields(self, true_field, recon_field, subtitle=None, scale=1.0, norm=False,
+                            save=False, save_path=None, file_name="reconstruction.png"):
+
+        import matplotlib.pyplot as plt #lazy import
+        from .visuals.metrics import reconstruction_fig, save_fig, DEFAULT_SAVE_PATH
+ 
+        fig = reconstruction_fig(true_field=true_field,
+                                 recon_field=recon_field,
+                                 feature_names=self.toggled_features,
+                                 pos_2d=self.electrode_2d_pos,
+                                 subtitle=subtitle,
+                                 scale=scale,
+                                 norm=norm)
+ 
+        if save:
+            save_fig(fig, save_path or DEFAULT_SAVE_PATH, file_name)
+
+        plt.show()
+ 
+    #image-space panels; takes the same (n_chns, F) fields and transforms both,
+    #M is linear so the difference panel is the pixel difference 
+    def view_image_fields(self, true_field, recon_field, apply_mask=False, subtitle=None, scale=1.0, norm=False,
+                   save=False, save_path=None, file_name="pixel.png"):
+        
+        import matplotlib.pyplot as plt #lazy import
+        from .visuals.metrics import reconstruction_fig, save_fig, DEFAULT_SAVE_PATH
+ 
+        fig = reconstruction_fig(true_field=self.to_img(true_field, apply_mask=apply_mask),
+                                 recon_field=self.to_img(recon_field, apply_mask=apply_mask),
+                                 feature_names=self.toggled_features,
+                                 subtitle=subtitle,
+                                 scale=scale,
+                                 norm=norm)
+ 
+        if save:
+            save_fig(fig, save_path or DEFAULT_SAVE_PATH, file_name)
+
+        plt.show()
+
+    #3x3 per feature: rows are field, dx, dy; columns are true, recon, difference
+    #cycled with the arrow keys; save writes every feature as its own file, since
+    #which one is on screen when the window closes is not knowable here
+    def view_sobel_fields(self, true_field, recon_field, apply_mask=True, subtitle=None, scale=1.0,
+                          save=False, save_path=None, file_stem="sobel"):
+        
+        import matplotlib.pyplot as plt #lazy import
+        from .visuals.metrics import (sobel_cycle_fig, sobel_feature_fig, save_fig, DEFAULT_SAVE_PATH)
+ 
+        #images stay unmasked here, the builder applies the mask after the operator
+        true_img = self.to_img(true_field)   #(H, W, F)
+        recon_img = self.to_img(recon_field) #(H, W, F)
+        mask = self.topo_mask if apply_mask else None
+ 
+        names = self.toggled_features
+ 
+        if save:
+            out = save_path or DEFAULT_SAVE_PATH
+            for f, name in enumerate(names):
+                one = sobel_feature_fig(true_img=true_img,
+                                        recon_img=recon_img,
+                                        feature_names=names,
+                                        feature_index=f,
+                                        mask=mask,
+                                        subtitle=subtitle,
+                                        scale=scale)
+                save_fig(one, out, f"{file_stem}_{name}.png")
+                plt.close(one)
+ 
+        sobel_cycle_fig(true_img=true_img,
+                        recon_img=recon_img,
+                        feature_names=names,
+                        mask=mask,
+                        subtitle=subtitle,
+                        scale=scale)
+        plt.show()
+
     #-------- mutation, diagnostics only --------
     def change_L(self, L_degree):
         self._require_sh()
@@ -294,7 +391,7 @@ class EEGEnv:
     @property
     def toggled_features(self):
         return self._feature_field.toggled_features if self.has_features else None
- 
+    
     #declared in a simulated env, derived from the declared toggles in a source env
     @property
     def num_features(self):

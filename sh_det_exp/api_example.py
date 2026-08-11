@@ -40,7 +40,7 @@ L_degree = 9 if ds_num != 3 else 3 #dataset 3 only has 22 electrodes, so highest
 img_size = (64, 64)
 margin = 0.75 
 
-declared_features = {"mean": True, "median": True, "iqr": True, "mobility": True, "complexity": True}
+declared_features = {"mean": False, "median": False, "iqr": False, "mobility": True, "complexity": True}
 num_features = sum(declared_features.values())
 print(f"Using {num_features} features") #F dim in n_chns x F
 
@@ -101,7 +101,8 @@ overlap_norm = shape_match_score(true=true_field, recon=recon_field)
 pixel_mse = pixel_loss(true_img=true_img, recon_img=recon_img, mask=DetEnv.topo_mask) # F
 sobel_mse = sobel_loss(true_img=true_img, recon_img=recon_img, mask=DetEnv.topo_mask) #F
 
-for i, (ft, using) in enumerate(declared_features.items()):
+for ft, using in declared_features.items():
+      i = 0
       if using: #if using feature
             print(f"{ft}:")
             print(f"square difference normed: {sqr_diff_norm[i]:.3f}") #lower is better
@@ -110,13 +111,49 @@ for i, (ft, using) in enumerate(declared_features.items()):
             print(f"pixel mse: {pixel_mse[i]:.3f}")
             print(f"sobel mse: {sobel_mse[i]:.3f}")
             print("\n")
+            i += 1
 
       else:
             continue
 #================================================
 
 #================Visuals================
-DetEnv.view_coeff_decoder()
+# DetEnv.view_coeff_decoder()
 DetEnv.view_img_transform()
 DetEnv.view_basis_sphere()
+#================================================
+
+
+#================Metric Visuals================
+normalise = False
+
+#metric bar expects shape of (F,)
+# DetEnv.view_metric_bar(values=sqr_diff_norm, metric_name="square diff normalised", 
+#                        feature_names=DetEnv.toggled_features, subtitle="Relative Error per feature for window 0, subject 1 | Lower is better", 
+#                        norm=normalise, save=False)
+
+# DetEnv.view_metric_bar(values=detail_score, metric_name="detail score", 
+#                        feature_names=DetEnv.toggled_features, subtitle="Recovered detail per feature for window 0, subject 1 | Higher is better", 
+#                        norm=normalise, save=False)
+
+# DetEnv.view_metric_bar(values=overlap_norm, metric_name="shape match score", 
+#                        feature_names=DetEnv.toggled_features, subtitle="Overlap-Norm per feature for window 0, subject 1 | Higher is better", 
+#                        norm=normalise, save=False)
+
+# DetEnv.view_metric_bar(values=pixel_mse, metric_name="Pixel loss", 
+#                        feature_names=DetEnv.toggled_features, subtitle="Pixel Loss per feature for window 0, subject 1 | Lower is better", 
+#                        norm=normalise, save=False)
+
+# DetEnv.view_metric_bar(values=sobel_mse, metric_name="Sobelloss", 
+#                        feature_names=DetEnv.toggled_features, subtitle="Sobel Loss per feature for window 0, subject 1 | Lower is better", 
+#                        norm=normalise, save=False)
+
+# DetEnv.view_electrode_fields(true_field=true_field, recon_field=recon_field, subtitle="per feature reconstruction for window 0, subject 1", 
+#                              norm=normalise, save=False)
+
+# DetEnv.view_image_fields(true_field=true_field, recon_field=recon_field, apply_mask=True, subtitle="per feature reconstruction for window 0, subject 1", 
+#                          norm=normalise, save=False)
+
+# DetEnv.view_sobel_fields(true_field=true_field, recon_field=recon_field, apply_mask=True,
+#                          subtitle="Sobel Filters/Derivative of Heatmap per feature", scale=0.01, save=False)
 #================================================

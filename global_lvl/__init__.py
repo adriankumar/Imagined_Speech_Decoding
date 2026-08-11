@@ -27,6 +27,8 @@ from .metrics import (reconstruction_loss, relative_error_loss,
                       recovered_detail_score, shape_match_score,
                       pixel_loss, sobel_stack, sobel_loss)
 
-from .visuals import (basis_matrix_fig, img_transform_fig, view_basis_sphere)
+from .visuals import (basis_matrix_fig, img_transform_fig, view_basis_sphere,
+                      save_fig, metric_bar_fig, reconstruction_fig,
+                      sobel_feature_fig, sobel_cycle_fig)
 
 
