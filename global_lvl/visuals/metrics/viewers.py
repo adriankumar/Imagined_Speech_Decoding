@@ -60,6 +60,7 @@ def _img_panel(ax, field_2d, cmap, vmin, vmax):
     m = ax.imshow(field_2d, origin="lower", cmap=cmap, vmin=vmin, vmax=vmax)
     ax.set_xticks([]); ax.set_yticks([])
     ax.figure.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
+    return m #reused by the gif builders, which set_data instead of redrawing
 
 #one field as an electrode scatter at the 2d projection
 def _scatter_panel(ax, values, pos_2d, cmap, vmin, vmax):
@@ -67,6 +68,7 @@ def _scatter_panel(ax, values, pos_2d, cmap, vmin, vmax):
     ax.set_aspect("equal")
     ax.set_xticks([]); ax.set_yticks([])
     ax.figure.colorbar(m, ax=ax, fraction=0.046, pad=0.04)
+    return m
 
 #true and recon share a range so a poor reconstruction cannot read as a good one;
 #the difference gets its own symmetric range so its structure stays visible

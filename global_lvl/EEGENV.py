@@ -270,6 +270,90 @@ class EEGEnv:
                         scale=scale)
         plt.show()
 
+    #-------- gif viewers --------
+    #single feature per gif, resolved by name against the toggled set
+    def _feature_index(self, feature):
+        names = self.toggled_features
+        assert names is not None, "this env has no FeatureField, no toggled features to index"
+        assert feature in names, f"'{feature}' is not a toggled feature, have {names}"
+        return names.index(feature)
+
+    #electrode-space panels across a sequence; expects (N, n_chns, F) for both
+    def view_electrode_fields_gif(self, true_fields, recon_fields, feature, subtitle=None, scale=1.0,
+                                  save_path=None, file_name=None, dpi=100, fps=10):
+
+        from .visuals.metrics import reconstruction_gif, DEFAULT_SAVE_PATH
+
+        f = self._feature_index(feature)
+
+        return reconstruction_gif(true_seq=true_fields[..., f],
+                                  recon_seq=recon_fields[..., f],
+                                  feature_name=feature,
+                                  pos_2d=self.electrode_2d_pos,
+                                  subtitle=subtitle,
+                                  scale=scale,
+                                  save_path=save_path or DEFAULT_SAVE_PATH,
+                                  file_name=file_name or f"reconstruction_{feature}.gif",
+                                  dpi=dpi, fps=fps)
+
+    #image-space panels across a sequence; the whole stack transforms in one call
+    #since M broadcasts over the leading axis, and the mask lands before the range
+    def view_image_fields_gif(self, true_fields, recon_fields, feature, apply_mask=True, subtitle=None,
+                              scale=1.0, save_path=None, file_name=None, dpi=100, fps=10):
+
+        from .visuals.metrics import reconstruction_gif, DEFAULT_SAVE_PATH
+
+        f = self._feature_index(feature)
+
+        true_img = self.to_img(true_fields, apply_mask=apply_mask)   #(N, H, W, F)
+        recon_img = self.to_img(recon_fields, apply_mask=apply_mask) #(N, H, W, F)
+
+        return reconstruction_gif(true_seq=true_img[..., f],
+                                  recon_seq=recon_img[..., f],
+                                  feature_name=feature,
+                                  subtitle=subtitle,
+                                  scale=scale,
+                                  save_path=save_path or DEFAULT_SAVE_PATH,
+                                  file_name=file_name or f"pixel_{feature}.gif",
+                                  dpi=dpi, fps=fps)
+
+    #3x3 for one feature across a sequence; rows are field, dx, dy
+    #images stay unmasked here, the builder applies the mask after the operator
+    def view_sobel_fields_gif(self, true_fields, recon_fields, feature, apply_mask=True, subtitle=None,
+                              scale=1.0, save_path=None, file_name=None, dpi=100, fps=10):
+
+        from .visuals.metrics import sobel_gif, DEFAULT_SAVE_PATH
+
+        f = self._feature_index(feature)
+
+        true_img = self.to_img(true_fields)   #(N, H, W, F)
+        recon_img = self.to_img(recon_fields) #(N, H, W, F)
+
+        return sobel_gif(true_seq=true_img[..., f],
+                         recon_seq=recon_img[..., f],
+                         feature_name=feature,
+                         mask=self.topo_mask if apply_mask else None,
+                         subtitle=subtitle,
+                         scale=scale,
+                         save_path=save_path or DEFAULT_SAVE_PATH,
+                         file_name=file_name or f"sobel_{feature}.gif",
+                         dpi=dpi, fps=fps)
+
+    #one scalar per feature per window; expects (N, F), all features in the one gif
+    def view_metric_bar_gif(self, values_seq, metric_name="metric", feature_names=None, subtitle=None,
+                            scale=1.0, save_path=None, file_name=None, dpi=100, fps=10):
+
+        from .visuals.metrics import metric_bar_gif, DEFAULT_SAVE_PATH
+
+        return metric_bar_gif(values_seq=values_seq,
+                              feature_names=feature_names or self.toggled_features,
+                              metric_name=metric_name,
+                              subtitle=subtitle,
+                              scale=scale,
+                              save_path=save_path or DEFAULT_SAVE_PATH,
+                              file_name=file_name or f"{metric_name}.gif",
+                              dpi=dpi, fps=fps)
+    
     #-------- mutation, diagnostics only --------
     def change_L(self, L_degree):
         self._require_sh()

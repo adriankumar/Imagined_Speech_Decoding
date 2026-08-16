@@ -4,27 +4,43 @@ import numpy as np
 #electrode space, inputs are nchns x F: nchns is resolved channels, F active features
 #every metric reduces over nchns and keeps F, so each feature gets its own number
 #------------
-#signed per-channel miss, the raw error; loss
-def reconstruction_loss(true, recon):
-    return true - recon  #(nchns x F)
+#the raw error; 
+def difference(true, recon):
+    return true - recon  #original shape; technically works for img too but can just compute from electrode and transform this result into an image and its the same thing
+
+#loss type
+def mean_error(true, recon, err_type="mse"):
+    if err_type not in ["mse", "mae", "rmse"]:
+        raise ValueError(f"mean error type: {err_type} unrecognised from mse, mae, and rmse")
+
+    diff = difference(true, recon) #nchns x F
+
+    if err_type == "mae":
+        return np.abs(diff).mean(axis=0) #F,
+
+    mse = (diff ** 2).mean(axis=0) #F,
+
+    if err_type == "rmse":
+        return np.sqrt(mse) #F,
+
+    return mse
 
 #error as a fraction of the feature's own size, per feature; loss
 #scale-free, so features with different units sit on the same 0-1
-def relative_error_loss(true, recon):
+def sqr_diff_ratio(true, recon):
     err_sq = ((true - recon) ** 2).sum(axis=0) #(F,)
     sig_sq = (true ** 2).sum(axis=0) #(F,)
     return err_sq / sig_sq  #(F,)
 
-#fraction of the across-channel pattern the reconstruction keeps, per feature; score
-#(spatial - differences from one electrode position to the next, not across time)
-def recovered_detail_score(true, recon):
+#squared error / true variance is the fraction of the signal's variance we got wrong; 
+#1 - flips that to what we got right
+def recovered_variance(true, recon):
     err_sq = ((true - recon) ** 2).sum(axis=0) #(F,)
     var_sq = ((true - true.mean(axis=0)) ** 2).sum(axis=0) #(F,)
     return 1 - err_sq / var_sq  #(F,)
 
-#whether the reconstructed map has the same shape as the true one, ignoring overall size; score
-#near 1 means same peaks and troughs in the same places even if the heights are off
-def shape_match_score(true, recon):
+def cosine_sim(true, recon):
+    #a * b / ||a|||b||
     dot = (true * recon).sum(axis=0) #(F,)
-    norms = np.linalg.norm(true, axis=0) * np.linalg.norm(recon, axis=0) #(F,)
-    return dot / norms  #(F,)
+    mag = np.linalg.norm(true, axis=0) * np.linalg.norm(recon, axis=0) #(F,)
+    return dot / np.maximum(mag, 1e-8)

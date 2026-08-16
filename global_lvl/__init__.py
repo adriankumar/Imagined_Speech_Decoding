@@ -23,8 +23,8 @@ from .components import (ElectrodeSim, FeatureField, SphericalHarmonics)
 
 from .EEGENV import EEGEnv
 
-from .metrics import (reconstruction_loss, relative_error_loss, 
-                      recovered_detail_score, shape_match_score,
+from .metrics import (difference, sqr_diff_ratio, mean_error,
+                      recovered_variance, cosine_sim,
                       pixel_loss, sobel_stack, sobel_loss)
 
 from .visuals import (basis_matrix_fig, img_transform_fig, view_basis_sphere,
