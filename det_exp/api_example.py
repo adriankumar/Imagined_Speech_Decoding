@@ -45,43 +45,43 @@ declared_features = {"mean": False, "median": False, "iqr": False, "mobility": T
 num_features = sum(declared_features.values())
 print(f"Using {num_features} features") #F dim in n_chns x F
 
-#no need to pass sfreq or window_seconds, they're not used
+#no need to pass sfreq or window_seconds, they're not used 
 DetEnv = EEGEnv(src_chn_names=chns, L_degree=L_degree, feature_toggles=declared_features,
                    montage=m_selection, img_dims=img_size, img_margin=margin)
 
-# DetEnv.view_img_transform()
+DetEnv.view_img_transform()
 
 #================================================
 
 #================Forward pass (compression -> reconstruction)================
 solver_type = SOLVER_TYPES[0] #0 is B=I (ridge regression); 1 is B=diag
-# for window in sequence: #shape nchns x window_size
+for window in sequence: #shape nchns x window_size
 
-#       #1. compute window features; nchns x F
-#       vec_field = DetEnv.window_to_features(window=window)
+      #1. compute window features; nchns x F
+      vec_field = DetEnv.window_to_features(window=window)
 
-#       #2. compress vector into coefficients; coeffs x F
-#       coeffs = DetEnv.deterministic_compress(feature_vectors=vec_field,
-#                                              solver_type=solver_type)
+      #2. compress vector into coefficients; coeffs x F
+      coeffs = DetEnv.deterministic_compress(feature_vectors=vec_field,
+                                             solver_type=solver_type)
 
-#       #3. reconstruct vector field from coeffs; nchns x F
-#       recon_field = DetEnv.decode_coeffs(coeffs=coeffs)
+      #3. reconstruct vector field from coeffs; nchns x F
+      recon_field = DetEnv.decode_coeffs(coeffs=coeffs)
 
-#       #nchns x F
-#       residual = vec_field - recon_field #also can be computed from detenv.compression_loss(feature_vectors=vec_field)
+      #nchns x F
+      residual = vec_field - recon_field #also can be computed from detenv.compression_loss(feature_vectors=vec_field)
 
-#       true_img = DetEnv.to_img(feature_vectors=vec_field, apply_mask=True)
-#       recon_img = DetEnv.to_img(feature_vectors=recon_field, apply_mask=True)
+      true_img = DetEnv.to_img(feature_vectors=vec_field, apply_mask=True)
+      recon_img = DetEnv.to_img(feature_vectors=recon_field, apply_mask=True)
 
-#       imgdx, imgdy = sobel_stack(img=true_img, per_axis=True)
-#       rimgdx, rimgdy = sobel_stack(img=recon_img, per_axis=True)
+      imgdx, imgdy = sobel_stack(img=true_img, per_axis=True)
+      rimgdx, rimgdy = sobel_stack(img=recon_img, per_axis=True)
 
-# print(f"true vector shape: {vec_field.shape}\n",
-#       f"coefficient vector shape: {coeffs.shape}\n",
-#       f"recon vector shape: {recon_field.shape}\n",
-#       f"delta shape: {residual.shape}\n",
-#       f"img shape: {true_img.shape}\n",
-#       f"sobel/derivative img shape: dx={imgdx.shape} | dy={imgdy.shape}\n")
+print(f"true vector shape: {vec_field.shape}\n",
+      f"coefficient vector shape: {coeffs.shape}\n",
+      f"recon vector shape: {recon_field.shape}\n",
+      f"delta shape: {residual.shape}\n",
+      f"img shape: {true_img.shape}\n",
+      f"sobel/derivative img shape: dx={imgdx.shape} | dy={imgdy.shape}\n")
 
 #================================================
 
@@ -96,33 +96,33 @@ true_img = DetEnv.to_img(feature_vectors=true_field)
 recon_img = DetEnv.to_img(feature_vectors=recon_field)
 
 #electrode-space metrics
-# sqr_diff = sqr_diff_ratio(true=true_field, recon=recon_field) #square difference, norm against true squared, per feature; (F,)
-# detail_score = recovered_variance(true=true_field, recon=recon_field) #F,
-# cos_score = cosine_sim(true=true_field, recon=recon_field)
+sqr_diff = sqr_diff_ratio(true=true_field, recon=recon_field) #square difference, norm against true squared, per feature; (F,)
+detail_score = recovered_variance(true=true_field, recon=recon_field) #F,
+cos_score = cosine_sim(true=true_field, recon=recon_field)
 
-#image-space metrics
-# pixel_mse = pixel_loss(true_img=true_img, recon_img=recon_img, mask=DetEnv.topo_mask) # F
-# sobel_mse = sobel_loss(true_img=true_img, recon_img=recon_img, mask=DetEnv.topo_mask) #F
+# image-space metrics
+pixel_mse = pixel_loss(true_img=true_img, recon_img=recon_img, mask=DetEnv.topo_mask) # F
+sobel_mse = sobel_loss(true_img=true_img, recon_img=recon_img, mask=DetEnv.topo_mask) #F
 
-# for ft, using in declared_features.items():
-#       i = 0
-#       if using: #if using feature
-#             print(f"{ft}:")
-#             print(f"squared difference divided by true sqaure: {sqr_diff[i]:.3f}") #lower is better
-#             print(f"recovered variance: {detail_score[i]:.3f}") #higher is better
-#             print(f"cosine similarity: {cos_score[i]:.3f}") #higher is better 
-#             print(f"pixel mse: {pixel_mse[i]:.3f}")
-#             print(f"sobel mse: {sobel_mse[i]:.3f}")
-#             print("\n")
-#             i += 1
+for ft, using in declared_features.items():
+      i = 0
+      if using: #if using feature
+            print(f"{ft}:")
+            print(f"squared difference divided by true sqaure: {sqr_diff[i]:.3f}") #lower is better
+            print(f"recovered variance: {detail_score[i]:.3f}") #higher is better
+            print(f"cosine similarity: {cos_score[i]:.3f}") #higher is better 
+            print(f"pixel mse: {pixel_mse[i]:.3f}")
+            print(f"sobel mse: {sobel_mse[i]:.3f}")
+            print("\n")
+            i += 1
 
-#       else:
-#             continue
+      else:
+            continue
 #================================================
 
 #================Visuals================
-# DetEnv.view_coeff_decoder()
-# DetEnv.view_img_transform()
+DetEnv.view_coeff_decoder()
+DetEnv.view_img_transform()
 # DetEnv.view_basis_sphere()
 #================================================
 
@@ -131,46 +131,47 @@ recon_img = DetEnv.to_img(feature_vectors=recon_field)
 normalise = False
 
 #metric bar expects shape of (F,)
-# DetEnv.view_metric_bar(values=sqr_diff, metric_name="square diff", 
-#                        feature_names=DetEnv.toggled_features, subtitle="Sqaure Difference Ratio per feature for window 0, subject 1 | Lower is better", 
-#                        norm=normalise, save=False)
+DetEnv.view_metric_bar(values=sqr_diff, metric_name="square diff", 
+                       feature_names=DetEnv.toggled_features, subtitle="Sqaure Difference Ratio per feature for window 0, subject 1 | Lower is better", 
+                       norm=normalise, save=False)
 
-# DetEnv.view_metric_bar(values=detail_score, metric_name="variance recovered", 
-#                        feature_names=DetEnv.toggled_features, subtitle="Recovered Variance per feature for window 0, subject 1 | Higher is better", 
-#                        norm=normalise, save=False)
+DetEnv.view_metric_bar(values=detail_score, metric_name="variance recovered", 
+                       feature_names=DetEnv.toggled_features, subtitle="Recovered Variance per feature for window 0, subject 1 | Higher is better", 
+                       norm=normalise, save=False)
 
-# DetEnv.view_metric_bar(values=cos_score, metric_name="cosine similarity", 
-#                        feature_names=DetEnv.toggled_features, subtitle="Cosine Similarity per feature for window 0, subject 1 | Higher is better", 
-#                        norm=normalise, save=False)
+DetEnv.view_metric_bar(values=cos_score, metric_name="cosine similarity", 
+                       feature_names=DetEnv.toggled_features, subtitle="Cosine Similarity per feature for window 0, subject 1 | Higher is better", 
+                       norm=normalise, save=False)
 
-# DetEnv.view_metric_bar(values=pixel_mse, metric_name="Pixel loss", 
-#                        feature_names=DetEnv.toggled_features, subtitle="Pixel Loss per feature for window 0, subject 1 | Lower is better", 
-#                        norm=normalise, save=False)
+DetEnv.view_metric_bar(values=pixel_mse, metric_name="Pixel loss", 
+                       feature_names=DetEnv.toggled_features, subtitle="Pixel Loss per feature for window 0, subject 1 | Lower is better", 
+                       norm=normalise, save=False)
 
-# DetEnv.view_metric_bar(values=sobel_mse, metric_name="Sobel loss", 
-#                        feature_names=DetEnv.toggled_features, subtitle="Sobel Loss per feature for window 0, subject 1 | Lower is better", 
-#                        norm=normalise, save=False)
+DetEnv.view_metric_bar(values=sobel_mse, metric_name="Sobel loss", 
+                       feature_names=DetEnv.toggled_features, subtitle="Sobel Loss per feature for window 0, subject 1 | Lower is better", 
+                       norm=normalise, save=False)
 
-DetEnv.view_electrode_fields(true_field=true_field, recon_field=recon_field, subtitle="per feature reconstruction for window 0, subject 1", 
+DetEnv.view_electrode_fields(true_field=true_field, recon_field=recon_field, subtitle="Per Feature Reconstruction for window 0, Subject 1 | wz=0.5", 
                              norm=normalise, save=False)
 
+DetEnv.view_image_fields(true_field=true_field, recon_field=recon_field, apply_mask=True,
+                         subtitle="Per Feature Reconstruction for window 0, Subject 1 | wz=0.5")
 
-# DetEnv.view_sobel_fields(true_field=true_field, recon_field=recon_field, apply_mask=True,
-#                          subtitle="Sobel Filters/Derivative of Heatmap per feature (scale=0.01)", scale=0.01, save=False)
+
+DetEnv.view_sobel_fields(true_field=true_field, recon_field=recon_field, apply_mask=True,
+                         subtitle="Sobel Filters/Derivative of Heatmap per feature (scale=0.01)", scale=0.01, save=False)
 #================================================
 
 #================Gif Visuals================
-true_fields = np.stack([DetEnv.window_to_features(window=w) for w in sequence]) #num_windows x nchns x F
-recon_fields = np.stack([DetEnv.decode_coeffs(DetEnv.deterministic_compress(t, solver_type))
-                         for t in true_fields]) 
+# true_fields = np.stack([DetEnv.window_to_features(window=w) for w in sequence]) #num_windows x nchns x F
+# recon_fields = np.stack([DetEnv.decode_coeffs(DetEnv.deterministic_compress(t, solver_type))
+#                          for t in true_fields]) 
 
 
-
-
-DetEnv.view_electrode_fields_gif(true_fields=true_fields, recon_fields=recon_fields,
-                                 feature="mobility", subtitle=f"mobility electrode fields at L={L_degree}",
-                                 save_path="temp_saves", file_name="mobility_e_field_mtor.gif")
+# DetEnv.view_electrode_fields_gif(true_fields=true_fields, recon_fields=recon_fields,
+#                                  feature="mobility", subtitle=f"mobility electrode fields at L={L_degree}",
+#                                  save_path="temp_saves", file_name="mobility_e_field.gif")
 
 # DetEnv.view_image_fields_gif(true_fields=true_fields, recon_fields=recon_fields,
-#                              feature="complexity", subtitle=f"complexity image fields at L={L_degree}",
-#                              save_path="temp_saves", file_name="complexity_m_field_tol.gif")
+#                              feature="mobility", subtitle=f"mobility image fields at L={L_degree}",
+#                              save_path="temp_saves", file_name="mobility_m_field.gif")
