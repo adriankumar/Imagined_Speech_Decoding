@@ -20,15 +20,22 @@
 #will just extract the fixed arrays and move to torch like 
 #transforms M an Y
 
-from .constants import MONTAGE, FEATURE_NAMES
+from .constants import MONTAGE
 from .helpers import window_size_from_seconds, apply_topo_mask
 from .visuals import (basis_matrix_fig, img_transform_fig)
-
 from .components import (ElectrodeSim, FeatureField, SphericalHarmonics)
+import os, json
+
+#rebuild an env from a saved config
+def load_eegenv(config_path, print_channel_resolve=False):
+    with open(config_path, "r", encoding="utf-8") as f:
+        config = json.load(f)
+
+    return EEGEnv._from_config(config, print_channel_resolve=print_channel_resolve)
 
 class EEGEnv:
     def __init__(self, src_chn_names=None, num_chns=None, sfreq=None,
-                 L_degree=None, num_features=None, feature_toggles=None,
+                 L_degree=None, num_features=None, feature_toggles=None, reference=None,
                  window_seconds=None, montage=MONTAGE, img_dims=(64, 64),
                  img_margin=0.75, print_channel_resolve=True):
  
@@ -47,16 +54,17 @@ class EEGEnv:
         self._window_seconds = window_seconds
         self._declared_features = None
  
-        self._build_features(num_features=num_features, feature_toggles=feature_toggles)
+        self._build_features(num_features=num_features, feature_toggles=feature_toggles, reference=reference)
         self._build_sh(L_degree=L_degree)
  
-    #-------- build --------
-    def _build_features(self, num_features, feature_toggles):
+    #-------- build/changers --------
+    def _build_features(self, num_features, feature_toggles, reference):
         if self._electrode_sim.is_general:
             #no window ever enters a simulated env, so F must be declared and
             #there is no source signal for sfreq or a window to describe
             assert num_features is not None and num_features > 0, "a simulated env must declare num_features, is not derivable on its own"
             assert feature_toggles is None, "a simulated env has no FeatureField to toggle"
+            assert reference is None, "a simulated env has no FeatureField to re-reference"
             assert self._sfreq is None, "a simulated env has no source signal, sfreq is meaningless"
             assert self._window_seconds is None, "a simulated env has no source signal to window"
  
@@ -70,7 +78,7 @@ class EEGEnv:
         assert self._sfreq is None or self._sfreq > 0, f"sfreq must be positive, got {self._sfreq}"
  
         self._feature_field = FeatureField(channels_order=self._electrode_sim.channels_order,
-                                           feature_toggles=feature_toggles)
+                                           feature_toggles=feature_toggles, reference=reference)
  
     def _build_sh(self, L_degree):
         if L_degree is None: 
@@ -81,18 +89,74 @@ class EEGEnv:
         self._sh = SphericalHarmonics(L_degree=L_degree,
                                       thetas=coords["thetas"],
                                       phis=coords["phis"])
- 
-    #-------- factories --------
+
+    #handlers for when a source eeg input needs/wants to change a specific attribute
+    def _rebuild_dependents(self, L_degree=None):
+        self._feature_field = FeatureField(channels_order=self._electrode_sim.channels_order,
+                                           feature_toggles=self._feature_field.declared_toggles,
+                                           reference=self._feature_field.reference)
+
+        if self.has_sh:
+            #coords moved with the electrodes, so the basis is rebuilt rather than re-degreed
+            self._build_sh(L_degree=self.basis_degree if L_degree is None else L_degree)
+
+    #a new source, or the same names read against a different montage
+    #names and montage move together, a list from one montage resolves to nothing against another
+    def change_source(self, src_chn_names=None, montage=None, L_degree=None, print_channel_resolve=False):
+        assert not self.is_general, "a simulated env has no source to change"
+        assert src_chn_names is not None or montage is not None, "give src_chn_names, montage, or both"
+
+        self._electrode_sim.rebuild(src_chn_names=src_chn_names,
+                                    montage=montage,
+                                    print_channel_resolve=print_channel_resolve)
+        
+        self._rebuild_dependents(L_degree=L_degree)
+
+    #how far the interpolation reaches past the outermost electrode
+    def change_img_margin(self, img_margin, L_degree=None):
+        assert not self.is_general, "a simulated env's image space is fixed at construction"
+
+        self._electrode_sim.rebuild(img_margin=img_margin)
+        self._rebuild_dependents(L_degree=L_degree)
+
+    #signal description only, nothing in the geometry depends on either
+    def change_sfreq(self, sfreq):
+        assert not self.is_general, "a simulated env has no source signal"
+        assert sfreq is None or sfreq > 0, f"sfreq must be positive, got {sfreq}"
+        self._sfreq = sfreq
+
+    def change_window_seconds(self, window_seconds):
+        assert not self.is_general, "a simulated env has no source signal to window"
+        assert window_seconds is None or window_seconds > 0, f"window_seconds must be positive, got {window_seconds}"
+        self._window_seconds = window_seconds
+
+    #removed assertion for model for now as for results discussion on model coeff predictions against lower L's
+    #but during actual deployment, L should not change for the model; this is just to see robustness against SH decoder
+    def change_L(self, L_degree):
+        # assert not self.is_general, "the model's basis is fixed, only a source env's degree is diagnostic"
+        self._require_sh()
+        self._sh.change_L(L_degree=L_degree)
+
+    #raw sources are re-referenced, preprocessed ones already are
+    def change_reference(self, reference):
+        assert not self.is_general, "a simulated env has no FeatureField to re-reference"
+
+        self._feature_field = FeatureField(channels_order=self._electrode_sim.channels_order,
+                                           feature_toggles=self._feature_field.declared_toggles,
+                                           reference=reference)
+
+    #-------- constructors --------
     #source-side env; features always, basis only if L_degree given
     @classmethod
-    def for_source(cls, src_chn_names, sfreq=None, L_degree=None, feature_toggles=None,
-                   window_seconds=None, montage=MONTAGE, img_dims=(64, 64),
+    def for_source(cls, src_chn_names, sfreq=None, L_degree=None, feature_toggles=None, 
+                   reference=None, window_seconds=None, montage=MONTAGE, img_dims=(64, 64),
                    img_margin=0.75, print_channel_resolve=True):
         
         return cls(src_chn_names=src_chn_names,
                    sfreq=sfreq,
                    L_degree=L_degree,
                    feature_toggles=feature_toggles,
+                   reference=reference,
                    window_seconds=window_seconds,
                    montage=montage,
                    img_dims=img_dims,
@@ -103,6 +167,7 @@ class EEGEnv:
     @classmethod
     def simulated(cls, num_chns, num_features, L_degree, montage=MONTAGE,
                   img_dims=(64, 64), img_margin=0.75):
+        
         return cls(num_chns=num_chns,
                    num_features=num_features,
                    L_degree=L_degree,
@@ -110,6 +175,14 @@ class EEGEnv:
                    img_dims=img_dims,
                    img_margin=img_margin,
                    print_channel_resolve=False)
+
+    #from saved config; used in loader function
+    @classmethod
+    def _from_config(cls, config, print_channel_resolve=False):
+        cfg = dict(config)
+        cfg.pop("mode", None) #redundant, the chn args already determine it
+        cfg["img_dims"] = tuple(cfg["img_dims"])
+        return cls(print_channel_resolve=print_channel_resolve, **cfg)
  
     #-------- guards --------
     def _require_features(self):
@@ -118,9 +191,17 @@ class EEGEnv:
  
     def _require_sh(self):
         if self._sh is None:
-            raise RuntimeError("this env has no SphericalHarmonics; pass L_degree to the factory")
+            raise RuntimeError("this env has no SphericalHarmonics Module; pass L_degree to the constructor")
+
+    #when two envs are used (one for feature input, another for SH basis for model to use)
+    #ensure img dims, and num features match
+    #montage and channel count are expected to diverge
+    def assert_compatible(self, other):
+        assert tuple(self.img_dims) == tuple(other.img_dims), f"image dims differ: {self.img_dims} vs {other.img_dims}"
+        assert self.num_features == other.num_features, f"feature count differs: {self.num_features} vs {other.num_features}"
  
-    #-------- pipeline --------
+
+    #-------- forward methods --------
     #raw window (n_chns, T) -> feature vectors (n_chns, F)
     #ft_toggles as arg is for diagnostics only- F will not match num_features when it is used here
     def window_to_features(self, window, ft_toggles=None):
@@ -305,7 +386,7 @@ class EEGEnv:
 
         f = self._feature_index(feature)
 
-        true_img = self.to_img(true_fields, apply_mask=apply_mask)   #(N, H, W, F)
+        true_img = self.to_img(true_fields, apply_mask=apply_mask) #(N, H, W, F)
         recon_img = self.to_img(recon_fields, apply_mask=apply_mask) #(N, H, W, F)
 
         return reconstruction_gif(true_seq=true_img[..., f],
@@ -318,7 +399,6 @@ class EEGEnv:
                                   dpi=dpi, fps=fps)
 
     #3x3 for one feature across a sequence; rows are field, dx, dy
-    #images stay unmasked here, the builder applies the mask after the operator
     def view_sobel_fields_gif(self, true_fields, recon_fields, feature, apply_mask=True, subtitle=None,
                               scale=1.0, save_path=None, file_name=None, dpi=100, fps=10):
 
@@ -339,7 +419,7 @@ class EEGEnv:
                          file_name=file_name or f"sobel_{feature}.gif",
                          dpi=dpi, fps=fps)
 
-    #one scalar per feature per window; expects (N, F), all features in the one gif
+    #one scalar per feature per window; expects (N, F), all features in one gif
     def view_metric_bar_gif(self, values_seq, metric_name="metric", feature_names=None, subtitle=None,
                             scale=1.0, save_path=None, file_name=None, dpi=100, fps=10):
 
@@ -354,10 +434,6 @@ class EEGEnv:
                               file_name=file_name or f"{metric_name}.gif",
                               dpi=dpi, fps=fps)
     
-    #-------- mutation, diagnostics only --------
-    def change_L(self, L_degree):
-        self._require_sh()
-        self._sh.change_L(L_degree=L_degree)
  
     #-------- config --------
     #current constructor state; declared feature toggles are included so a
@@ -377,21 +453,48 @@ class EEGEnv:
             "img_dims": list(self.img_dims),
             "img_margin": self.img_margin,
         }
- 
-    @classmethod
-    def from_config(cls, config, print_channel_resolve=False):
-        cfg = dict(config)
-        cfg.pop("mode", None) #redundant, the chn args already determine it
-        cfg["img_dims"] = tuple(cfg["img_dims"])
-        return cls(print_channel_resolve=print_channel_resolve, **cfg)
- 
-    #envs on either side of the model must agree on the image contract only;
-    #montage and channel count are expected to diverge
-    def assert_compatible(self, other):
-        assert tuple(self.img_dims) == tuple(other.img_dims), f"image dims differ: {self.img_dims} vs {other.img_dims}"
-        assert self.num_features == other.num_features, f"feature count differs: {self.num_features} vs {other.num_features}"
- 
-    #-------- predicates --------
+
+    #the constructor state as json, enough for load_eegenv to rebuild this env exactly
+    def save(self, path):
+        directory = os.path.dirname(path)
+        if directory:
+            os.makedirs(directory, exist_ok=True)
+
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.config, f, indent=1)
+
+        return path
+    
+    #-------- solver extractors --------
+    def extract_solver_operator(self, is_torch=False, device=None):
+        import numpy as np
+        identity = np.eye(self.num_channels) #nchns x nchns
+        coeffs = np.array(self.deterministic_compress(feature_vectors=identity)) #coeffs x nchns
+
+        if is_torch:
+            import torch
+            assert device is not None, "Please specify device if extracting as a Pytorch tensor"
+            return torch.as_tensor(coeffs, dtype=torch.float32, device=device), torch.as_tensor(identity, dtype=torch.float32, device=device)
+
+        #numpy, coeffs x nchns is the linear transform of the solver 
+        return coeffs, identity
+
+    #residual is what the basis could not represent
+    def extract_residual_operator(self, is_torch=False, device=None):
+        import numpy as np
+        solver, identity = self.extract_solver_operator(is_torch=False) #coeffs x nchns as np
+        recon = np.array(self.decode_coeffs(coeffs=solver)) #recon of identity
+        residual = identity - recon
+
+        if is_torch:
+            import torch
+            assert device is not None, "Please specify device if extracting as a Pytorch tensor"
+            return torch.as_tensor(residual, dtype=torch.float32, device=device)
+
+
+        return residual #numpy, nchns x nchns
+    
+    #-------- component split --------
     @property
     def is_general(self):
         return self._electrode_sim.is_general
@@ -489,6 +592,10 @@ class EEGEnv:
     @property
     def window_seconds(self):
         return self._window_seconds
+
+    @property
+    def reference(self):
+        return self._feature_field.reference if self.has_features else None
  
     #fixed in seconds, so the same physical duration across differing sfreqs
     @property
@@ -507,5 +614,5 @@ class EEGEnv:
         return self._sh.basis_degree if self.has_sh else None
  
     @property
-    def total_coeffs(self):
+    def total_coeffs(self): #is (L+1)^2, same number as modes
         return self._sh.total_coeffs if self.has_sh else None

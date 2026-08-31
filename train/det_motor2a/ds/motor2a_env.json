@@ -1,0 +1,48 @@
+{
+ "mode": "source",
+ "src_chn_names": [
+  "Fz",
+  "FC3",
+  "FC1",
+  "FCz",
+  "FC2",
+  "FC4",
+  "C5",
+  "C3",
+  "C1",
+  "Cz",
+  "C2",
+  "C4",
+  "C6",
+  "CP3",
+  "CP1",
+  "CPz",
+  "CP2",
+  "CP4",
+  "P1",
+  "Pz",
+  "P2",
+  "POz",
+  "EOG-left",
+  "EOG-central",
+  "EOG-right"
+ ],
+ "num_chns": null,
+ "sfreq": 250.0,
+ "L_degree": 3,
+ "num_features": null,
+ "feature_toggles": {
+  "mean": false,
+  "median": false,
+  "iqr": false,
+  "mobility": true,
+  "complexity": true
+ },
+ "window_seconds": 0.5,
+ "montage": "standard_1005",
+ "img_dims": [
+  64,
+  64
+ ],
+ "img_margin": 0.95
+}

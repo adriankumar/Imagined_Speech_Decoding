@@ -25,7 +25,6 @@ class SphericalHarmonics:
                                  phi=self._phi,
                                  L=self._L)
 
-    #only used for GUI's, remains fixed everywhere else
     def change_L(self, L_degree):
         assert is_compatible(L=L_degree, nchns=len(self._theta)), f"Lower value of L (L={L_degree} | coeffs={(L_degree+1)**2}) for data-field of size {len(self._theta)}; max L degree that can fit is {max_L_for_chns(len(self._theta))}"
         self._build(L=L_degree)

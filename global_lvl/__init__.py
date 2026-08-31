@@ -21,7 +21,7 @@ from .helpers import (
 #makes up eeg-env
 from .components import (ElectrodeSim, FeatureField, SphericalHarmonics)
 
-from .EEGENV import EEGEnv
+from .EEGENV import EEGEnv, load_eegenv
 
 from .metrics import (difference, sqr_diff_ratio, mean_error,
                       recovered_variance, cosine_sim,

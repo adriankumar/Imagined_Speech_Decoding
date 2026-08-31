@@ -5,7 +5,7 @@ from ..helpers import (compute_mean, compute_median, compute_iqr,
 import numpy as np
 
 class FeatureField:
-    def __init__(self, channels_order=None, feature_toggles=None):
+    def __init__(self, channels_order=None, feature_toggles=None, reference=None):
         self._feat_fns = {"mean": compute_mean, "median": compute_median, "iqr": compute_iqr,
                           "mobility": hjorth_mobility, "complexity": hjorth_complexity}
 
@@ -18,6 +18,10 @@ class FeatureField:
             self._declared.update(self._checked(feature_toggles))
 
         assert len(self.toggled_features) >= 1, "Must have at least one feature toggled"
+
+        #re-referencing is applied after the channel slice,
+        assert reference in (None, "average"), f"reference must be None or 'average', got {reference}"
+        self._reference = reference
 
     def _checked(self, ft_toggles):
         unknown = set(ft_toggles) - set(FEATURE_NAMES)
@@ -44,6 +48,11 @@ class FeatureField:
 
         window = window[..., self._chns_order, :] #keep only resolved chns in resolved order so M and Y line up
 
+        if self._reference == "average":
+            window = window - window.mean(axis=-2, keepdims=True)
+
+        #window.shape[-1] >= 3 asserted because complexity needs enough time samples 
+        #to take a second derivative
         if "complexity" in fn_names:
             assert window.shape[-1] >= 3, f"window needs >= 3 samples for hjorth complexity, got {window.shape[-1]}"
 
@@ -61,3 +70,7 @@ class FeatureField:
     @property
     def declared_toggles(self):
         return dict(self._declared)
+
+    @property
+    def reference(self):
+        return self._reference

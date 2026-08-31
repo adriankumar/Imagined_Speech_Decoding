@@ -1,3 +1,0 @@
-if any imports fail it may be because of top-level, circular dependencies
-then easiest solve is to lazy import if you know a particular function is called
-later preventing a circular dependency

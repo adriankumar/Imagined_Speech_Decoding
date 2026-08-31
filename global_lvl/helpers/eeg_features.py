@@ -26,15 +26,16 @@ def compute_iqr(x):
     q75, q25 = np.percentile(x, [75, 25], axis=-1)
     return q75 - q25
 
+#x is nchns x timepoints
 def _window_variance(x):
     if x.shape[-1] == 0:
         return np.zeros(x.shape[:-1])
-    return np.var(x, axis=-1)
+    return np.var(x, axis=-1) #variance across timepoints axis
 
 #hjorth mobility, time-domain proxy for mean frequency, zero where the signal does not vary
 def hjorth_mobility(x):
     var_x = _window_variance(x)
-    var_dx = _window_variance(np.diff(x, axis=-1))
+    var_dx = _window_variance(np.diff(x, axis=-1)) #np.diff computes n-th discrete difference
     return np.sqrt(np.divide(var_dx, var_x, out=np.zeros_like(var_x), where=var_x > 0))
 
 #hjorth complexity, time-domain proxy for bandwidth, zero where the first derivative does not vary

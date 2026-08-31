@@ -74,6 +74,25 @@ class ElectrodeSim:
             "phis": phis
         }
 
+    #re-build electrode geometry dependencies
+    #only meaningful for a source sim, where arbitrary eeg input recordings come in and have different settings, 
+    #the simulated route has no channel names to swap since it's built with num_chns
+    def rebuild(self, src_chn_names=None, montage=None, img_margin=None, print_channel_resolve=False):
+        assert not self._for_general, "a simulated electrode sim has no source to change"
+
+        if montage is not None:
+            assert montage in MNE_MONTAGES, f"Montage: {montage} is not recognised by MNE"
+            self._montage = montage
+
+        if src_chn_names is not None:
+            assert isinstance(src_chn_names, list), f"source channel names must be a list of strings, got {type(src_chn_names)}"
+            self._original_chns = src_chn_names
+
+        if img_margin is not None:
+            self._interpol_margin = img_margin
+
+        self._build(print_chns_resolve=print_channel_resolve)
+
     @property 
     def montage(self):
         return self._montage

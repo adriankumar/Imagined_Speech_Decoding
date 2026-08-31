@@ -15,7 +15,6 @@ FEATURE_NAMES = ["mean", "median", "iqr", "mobility", "complexity"]
 
 SOLVER_TYPES = ["B=I", "B=diag"]
 
-#DEFAULT-ARGS for models, data-caching etc
 WINDOW_SIZE = 0.5
 MONTAGE = "standard_1005" #densest reference dictionary; 10-20 and 10-10 names are position-identical subsets
 
@@ -26,7 +25,7 @@ FEATURE_TOGGLES = {"mean": False, "median": False, "iqr": False,
 
 L = 9 
 NUM_SCHNS = (L+1)**2 #number of simulated channels
-SFREQ_MAX = 1000
+SFREQ_MAX = 1000 #for model to normalise against arbitrary eeg inputs
 IMG_DIMS = (64, 64) #img size for eeg inputs and outputs
 MARGIN = 0.95 #for img interpol
 

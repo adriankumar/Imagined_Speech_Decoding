@@ -26,14 +26,14 @@ def mean_error(true, recon, err_type="mse"):
     return mse
 
 #error as a fraction of the feature's own size, per feature; loss
-#scale-free, so features with different units are on the same 0-1
+#scale-free, so features with different units sit on the same 0-1
 def sqr_diff_ratio(true, recon):
     err_sq = ((true - recon) ** 2).sum(axis=0) #(F,)
     sig_sq = (true ** 2).sum(axis=0) #(F,)
     return err_sq / sig_sq  #(F,)
 
-#squared error / true variance is fraction of the signal's variance that is wrong; 
-#1 - changes that to what we got right
+#squared error / true variance is the fraction of the signal's variance we got wrong; 
+#1 - changes to what we got right
 def recovered_variance(true, recon):
     err_sq = ((true - recon) ** 2).sum(axis=0) #(F,)
     var_sq = ((true - true.mean(axis=0)) ** 2).sum(axis=0) #(F,)
