@@ -2,8 +2,7 @@ import os, json, random
 import numpy as np 
 from torch.utils.data import Dataset, DataLoader, ConcatDataset
 
-from .helpers import (read_json, resolve_partial_label, get_labels_matrix, truncate_recording,
-                      DECODER_CLASSES)
+from .helpers import (read_json, resolve_partial_label, get_labels_matrix, truncate_recording,)
 
 #only two arrangements trained on, single windows or sequence of windows; 
 #anything between them is handled by the bptt truncation in the training loop 
@@ -11,13 +10,25 @@ WINDOWS = "windows" #one window per item, independent, for ffn
 SEQUENCES = "sequences" #one whole recording per item, for rnns
 ARRANGEMENTS = (WINDOWS, SEQUENCES)
 
+DECODER_CLASSES = ["rest", "hand", "feet", "tongue", "left", "right"]
+
+#decoder classes x motor2a labels
+LABEL_ENCODING = {
+    0: (0, 0, 0, 0, 0, 0), #rest implicit — no positive head, derived later as 1-max(task)
+    1: (0, 1, 0, 0, 1, 0), #left hand
+    2: (0, 1, 0, 0, 0, 1), #right hand
+    3: (0, 0, 1, 0, 1, 1), #both feet
+    4: (0, 0, 0, 1, 0, 0) #tongue
+}
 
 def seq_len_for(arrangement):
     assert arrangement in ARRANGEMENTS, f"arrangement must be one of {ARRANGEMENTS}, got {arrangement}"
     return 1 if arrangement == WINDOWS else None
 
 class Motor2aCache(Dataset):
-    def __init__(self, cache_path, arrangement=WINDOWS, partial_window_threshold=0.7):
+    def __init__(self, cache_path, arrangement=WINDOWS, partial_window_threshold=0.7,
+                 class_encodings=LABEL_ENCODING, classes=DECODER_CLASSES):
+        
         self._dir = cache_path
         self._arrangement = arrangement
         self._threshold = partial_window_threshold
@@ -26,11 +37,11 @@ class Motor2aCache(Dataset):
         self._run_meta = read_json(os.path.join(cache_path, "index.json"))["runs"] #the info for each feature window
         self._feat_windows = np.load(os.path.join(cache_path, "features.npy"), mmap_mode="r") #the actual cached data
 
-        classes = np.load(os.path.join(cache_path, "classes.npy"))
+        raw_classes = np.load(os.path.join(cache_path, "classes.npy"))
         partial_windows = np.load(os.path.join(cache_path, "fractions.npy"))
-        assert len(classes) == len(partial_windows) == self._feat_windows.shape[0], "label arrays are not row aligned with the feature array"
-        self._classes = resolve_partial_label(classes, partial_windows, self._threshold)
-        self._targets = get_labels_matrix()[self._classes]
+        assert len(raw_classes) == len(partial_windows) == self._feat_windows.shape[0], "label arrays are not row aligned with the feature array"
+        self._classes = resolve_partial_label(raw_classes, partial_windows, self._threshold)
+        self._targets = get_labels_matrix(class_encodings, classes)[self._classes]
 
         #labels for indexing the feat_windows at load
         self._seq_index, self._chunk_runs, self._seq_len = truncate_recording(self._run_meta,
@@ -121,16 +132,17 @@ class Motor2aCache(Dataset):
 
 #one cache per window size; each cache has diff values of features computed from
 #window sizes 0.2, 0.5 and 0.7 in seconds
-def build_sources(cache_paths, arrangement, threshold):
+def build_sources(cache_paths, arrangement, threshold, class_encoding, classes):
     return [Motor2aCache(cache_path=path, arrangement=arrangement,
-                         partial_window_threshold=threshold) for path in cache_paths]
+                         partial_window_threshold=threshold, 
+                         class_encodings=class_encoding, classes=classes) for path in cache_paths]
 
 
 #for ffns & eelectrode vs coeffs experiemnt
-def build_window_loader(cache_paths, batch_size=64, threshold=0.7, shuffle=True,
-                        num_workers=0, drop_last=False):
+def build_window_loader(cache_paths, class_encoding=LABEL_ENCODING, classes=DECODER_CLASSES, 
+                        batch_size=64, threshold=0.7, shuffle=True, num_workers=0, drop_last=False):
 
-    sources = build_sources(cache_paths, WINDOWS, threshold)
+    sources = build_sources(cache_paths, WINDOWS, threshold, class_encoding, classes)
 
     loader = DataLoader(dataset=ConcatDataset(sources), batch_size=batch_size, shuffle=shuffle,
                         num_workers=num_workers, drop_last=drop_last)
@@ -170,10 +182,10 @@ class SequenceLoader:
         return self._sources
 
 #for rnns
-def build_sequence_loader(cache_paths, batch_size=64, threshold=0.7, shuffle=True,
-                          num_workers=0, drop_last=False):
+def build_sequence_loader(cache_paths, class_encoding=LABEL_ENCODING, classes=DECODER_CLASSES,
+                          batch_size=64, threshold=0.7, shuffle=True, num_workers=0, drop_last=False):
 
-    sources = build_sources(cache_paths, SEQUENCES, threshold)
+    sources = build_sources(cache_paths, SEQUENCES, threshold, class_encoding, classes)
 
     loader = SequenceLoader(sources, batch_size=batch_size, shuffle=shuffle,
                             num_workers=num_workers, drop_last=drop_last)

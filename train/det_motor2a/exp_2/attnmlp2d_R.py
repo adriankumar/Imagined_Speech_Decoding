@@ -1,0 +1,94 @@
+from models.det_motor2a import Motor2aMLP2D
+from global_lvl import load_eegenv
+from ..ds.loaders import build_window_loader
+from ..ds.stats import compute_feature_clips, compute_electrode_feature_means
+from ..exp_1.compression_stats import mean_through_operator
+from .train_helpers.for_mlp2d import train_decoder
+import torch 
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+#===load dataset===
+wsizes = [0.2, 0.5, 0.7] #window sizes of cached motor2a features
+paths = [f"F:/EEG_datasets/cached/deterministic_motor/wz_{str(wz)}" for wz in wsizes]
+thresh = 1.0 #for labels existing in partial windows
+batch_size = 64 
+shuffle = True 
+drop_irregular_sequence = False 
+
+classes = ["hand", "feet", "tongue", "left", "right"] #specialised class
+
+#decoder classes x motor2a labels
+class_encodings = {
+    # decoder 1 class
+    0: (0, 0, 0, 0, 0), #rest implicit 
+    #decoder 2 classes
+    1: (1, 0, 0, 1, 0), #left hand
+    2: (1, 0, 0, 0, 1), #right hand
+    3: (0, 1, 0, 1, 1), #both feet
+    4: (0, 0, 1, 0, 0)  #tongue
+}
+
+
+#cache srcs is a list of Motor2aCache classes, there should be 3
+cache_srcs, loader = build_window_loader(cache_paths=paths, class_encoding=class_encodings, 
+                                         classes=classes, batch_size=batch_size, 
+                                         threshold=thresh, shuffle=shuffle, 
+                                         drop_last=drop_irregular_sequence)
+
+#===env loading===
+eegenv_pth = "train/det_motor2a/ds/motor2a_env.json"
+eegenv = load_eegenv(config_path=eegenv_pth, print_channel_resolve=True) #motor2a has 25 channels but only 22 EEG ones are used
+L_degree = 2 #9 coefficients for 22 electrodes
+eegenv.change_L(L_degree=L_degree)
+
+#==training dist preprocessing for model==
+percentile = 99.9 #what value does 99.9% of the training set fall below
+clip = compute_feature_clips(sources=cache_srcs, percentile=percentile) #F,
+chn_mean = compute_electrode_feature_means(sources=cache_srcs, clip=clip) #nchns x F;   
+#indexxed as 0 because it returns a tuple (solver, identity)
+coeff_mean = mean_through_operator(chn_mean, eegenv.extract_solver_operator(is_torch=False)[0])  #coeffs x F
+
+
+#===MLP 2 DECODERs===
+input_dim = eegenv.total_coeffs #using coefficients as input
+# input_dim = eegenv.num_channels
+num_feat = eegenv.num_features 
+query1_dim = 20
+query2_dim = 20
+attn_heads = 2
+
+hidden_dim = 30 
+n_layers = 2 
+out1_dim = 1 #probability of task-active; rest is 1-(deocder_1.predict())
+out2_dim = len(classes) #specialised
+gate_threshold = 0.7
+dr = 0.2
+reduce_layers = True 
+
+decoder = Motor2aMLP2D(input_dim=input_dim, num_features=num_feat, query1_dim=query1_dim, query2_dim=query2_dim,
+                       num_heads1=attn_heads, num_heads2=attn_heads, n_layers=n_layers, hidden_dim=hidden_dim, 
+                       out1_dim=out1_dim, out2_dim=out2_dim, dr=dr, reduce_layers=reduce_layers, 
+                       gate_threshold=gate_threshold, input_clip=clip, input_mean=coeff_mean)
+
+decoder.print_param_count()
+
+#===Training===
+lr_1 = 1e-3
+lr_2 = 1e-3
+grad_clip = 5.0
+epochs_1 = 700
+epochs_2 = 700
+epochs_till_break = 100 #if loss remains stuck for at least these amount of epcohs then stop the training and save
+save_freq = 100
+input_mode="coeffs"
+# input_mode = "electrodes"
+mlp_path = "train/det_motor2a/exp_2/saves/two_decoder"
+save_name = f"mlp_two_decoder_coeff_L{L_degree}"
+# save_name = "mlp_two_decoder_electrodes"
+
+trained, metrics = train_decoder(eegenv=eegenv, model=decoder, ds_loader=loader, device=device,
+                                 lr_1=lr_1, stage1_epochs=epochs_1, stage2_epochs=epochs_2, 
+                                 stage1_patience=epochs_till_break, stage2_patience=epochs_till_break, lr_2=lr_2,  
+                                 input_mode=input_mode, grad_clip=grad_clip, save_freq=save_freq,
+                                 save_pth=mlp_path, save_name=save_name)

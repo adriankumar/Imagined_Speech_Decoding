@@ -1,29 +1,14 @@
 import json
 import numpy as np 
 
-#ablations of decoder paths involve:
-#1. all classes used 
-#2. isolate rest from class, and add it to a hierarchical task vs idle classifier, with the remaining labels as the sub-classes
-#3. isolate left and right from hand and feet as well
-DECODER_CLASSES = ["rest", "hand", "feet", "tongue", "left", "right"]
-
-#decoder classes x motor2a labels
-LABEL_ENCODING = {
-    0: (1, 0, 0, 0, 0, 0), #rest
-    1: (0, 1, 0, 0, 1, 0), #left hand
-    2: (0, 1, 0, 0, 0, 1), #right hand
-    3: (0, 0, 1, 0, 1, 1), #both feet
-    4: (0, 0, 0, 1, 0, 0) #tongue
-}
-
 def read_json(path):
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def get_labels_matrix():
+def get_labels_matrix(label_encoding, labels):
     #BCE withlogitloss needs float targets
-    table = np.zeros((len(LABEL_ENCODING), len(DECODER_CLASSES)), dtype=np.float32) 
-    for cls, bnry_cls in LABEL_ENCODING.items():
+    table = np.zeros((len(label_encoding), len(labels)), dtype=np.float32) 
+    for cls, bnry_cls in label_encoding.items():
         table[cls] = bnry_cls #the tuple item
     return table #shape dataset_labels x model_class
 
