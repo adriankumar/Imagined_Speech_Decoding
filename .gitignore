@@ -2,7 +2,6 @@
 *.pyc
 *.pt
 /.vscode
-temp_saves/
 models/architectures/components/quantile_head.py
 models/architectures/components/adapters.py
-train/det_motor2a/ds/env_and_cache_R.py
+datasets

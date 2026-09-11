@@ -1,11 +1,11 @@
-from .constants import (DEFAULT_EXCLUDE, MNE_MONTAGES, SEED, EPSILON, 
+from .constants import (DEFAULT_EXCLUDE, MNE_MONTAGES, SEED, EPSILON, FREQ_BANDS,
                         FEATURE_NAMES, WINDOW_SIZE, SOLVER_TYPES, MONTAGE, FEATURE_TOGGLES, 
                         L, NUM_SCHNS, SFREQ_MAX, IMG_DIMS, MARGIN, DROPOUT, 
                         DEFAULT_CMAP, DELTA_CMAP)
 
 from .helpers import (
     #for eeg features
-    window_size_from_seconds, compute_mean, compute_median, compute_iqr, hjorth_mobility, hjorth_complexity,
+    window_size_from_seconds, compute_mean, compute_median, compute_iqr, hjorth_mobility, hjorth_complexity, power_spectrum, relative_band_power, spectral_entropy,
 
     #for electrode handling
     lowercase_key, lookup_montage, build_chn_name_order, classify_chns, get_3d_pos, get_2d_pos,

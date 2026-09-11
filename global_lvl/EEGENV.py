@@ -51,20 +51,21 @@ class EEGEnv:
         #source-signal metadata is here, not in the geometry; re-referencing
         #and anything else describing the incoming signal belongs alongside it
         self._sfreq = sfreq
+        self._reference = reference
         self._window_seconds = window_seconds
         self._declared_features = None
  
-        self._build_features(num_features=num_features, feature_toggles=feature_toggles, reference=reference)
+        self._build_features(num_features=num_features, feature_toggles=feature_toggles)
         self._build_sh(L_degree=L_degree)
  
     #-------- build/changers --------
-    def _build_features(self, num_features, feature_toggles, reference):
+    def _build_features(self, num_features, feature_toggles):
         if self._electrode_sim.is_general:
             #no window ever enters a simulated env, so F must be declared and
             #there is no source signal for sfreq or a window to describe
             assert num_features is not None and num_features > 0, "a simulated env must declare num_features, is not derivable on its own"
             assert feature_toggles is None, "a simulated env has no FeatureField to toggle"
-            assert reference is None, "a simulated env has no FeatureField to re-reference"
+            assert self._reference is None, "a simulated env has no FeatureField to re-reference"
             assert self._sfreq is None, "a simulated env has no source signal, sfreq is meaningless"
             assert self._window_seconds is None, "a simulated env has no source signal to window"
  
@@ -78,10 +79,11 @@ class EEGEnv:
         assert self._sfreq is None or self._sfreq > 0, f"sfreq must be positive, got {self._sfreq}"
  
         self._feature_field = FeatureField(channels_order=self._electrode_sim.channels_order,
-                                           feature_toggles=feature_toggles, reference=reference)
- 
+                                           feature_toggles=feature_toggles, reference=self._reference,
+                                           sfreq=self._sfreq)
+
     def _build_sh(self, L_degree):
-        if L_degree is None: 
+        if L_degree is None:
             self._sh = None #the input-side EEGEnv for a model doesn't use SH so it isn't needed
             return
  
@@ -90,11 +92,18 @@ class EEGEnv:
                                       thetas=coords["thetas"],
                                       phis=coords["phis"])
 
-    #handlers for when a source eeg input needs/wants to change a specific attribute
-    def _rebuild_dependents(self, L_degree=None):
+    #the field is immutable, so every change to what it describes rebuilds it
+    #sfreq and reference both live on the env and are read from there, so None stays
+    #a real value rather than meaning carry-over; only the toggles come off the field
+    def _rebuild_feature_field(self):
         self._feature_field = FeatureField(channels_order=self._electrode_sim.channels_order,
                                            feature_toggles=self._feature_field.declared_toggles,
-                                           reference=self._feature_field.reference)
+                                           reference=self._reference,
+                                           sfreq=self._sfreq)
+
+    #handlers for when a source eeg input needs/wants to change a specific attribute
+    def _rebuild_dependents(self, L_degree=None):
+        self._rebuild_feature_field()
 
         if self.has_sh:
             #coords moved with the electrodes, so the basis is rebuilt rather than re-degreed
@@ -109,7 +118,7 @@ class EEGEnv:
         self._electrode_sim.rebuild(src_chn_names=src_chn_names,
                                     montage=montage,
                                     print_channel_resolve=print_channel_resolve)
-        
+
         self._rebuild_dependents(L_degree=L_degree)
 
     #how far the interpolation reaches past the outermost electrode
@@ -119,11 +128,14 @@ class EEGEnv:
         self._electrode_sim.rebuild(img_margin=img_margin)
         self._rebuild_dependents(L_degree=L_degree)
 
-    #signal description only, nothing in the geometry depends on either
+    #band masks are built from the frequency of each fft bin, so the field
+    #cannot keep a stale sfreq; clearing it while bands are toggled fails in the field
     def change_sfreq(self, sfreq):
         assert not self.is_general, "a simulated env has no source signal"
         assert sfreq is None or sfreq > 0, f"sfreq must be positive, got {sfreq}"
+
         self._sfreq = sfreq
+        self._rebuild_feature_field()
 
     def change_window_seconds(self, window_seconds):
         assert not self.is_general, "a simulated env has no source signal to window"
@@ -141,9 +153,8 @@ class EEGEnv:
     def change_reference(self, reference):
         assert not self.is_general, "a simulated env has no FeatureField to re-reference"
 
-        self._feature_field = FeatureField(channels_order=self._electrode_sim.channels_order,
-                                           feature_toggles=self._feature_field.declared_toggles,
-                                           reference=reference)
+        self._reference = reference
+        self._rebuild_feature_field()
 
     #-------- constructors --------
     #source-side env; features always, basis only if L_degree given
@@ -200,13 +211,45 @@ class EEGEnv:
         assert tuple(self.img_dims) == tuple(other.img_dims), f"image dims differ: {self.img_dims} vs {other.img_dims}"
         assert self.num_features == other.num_features, f"feature count differs: {self.num_features} vs {other.num_features}"
  
+        #a simulated env declares F as a count and has no toggles to compare against
+        if self.is_general or other.is_general:
+            return
+ 
+        #two source envs can agree on F while computing different features, so the count is not enough
+        assert self._feature_field.toggled_features == other._feature_field.toggled_features, \
+            f"feature sets differ: {self._feature_field.toggled_features} vs {other._feature_field.toggled_features}"
+ 
 
     #-------- forward methods --------
     #raw window (n_chns, T) -> feature vectors (n_chns, F)
     #ft_toggles as arg is for diagnostics only- F will not match num_features when it is used here
-    def window_to_features(self, window, ft_toggles=None):
+    #to add in future: pass a vector representing the features to clip its values
+    def window_to_features(self, window, ft_toggles=None, clip=None):
+        import torch #local import
+        import numpy as np
         self._require_features()
-        return self._feature_field.window_to_vec(window=window, ft_toggles=ft_toggles)
+
+        #the declared window fixes the frequency resolution the band masks are built against,
+        #so a differently sliced window computes bands the env does not describe
+        if self._window_seconds is not None:
+            assert window.shape[-1] == self.window_size, \
+                f"window has {window.shape[-1]} samples, {self._window_seconds}s at {self._sfreq}hz is {self.window_size}"
+
+        vec = self._feature_field.window_to_vec(window=window, ft_toggles=ft_toggles)
+
+        if clip is not None:
+            assert ft_toggles is None, "set (ft_toggles=None) when passing a clip argument"
+
+            if torch.is_tensor(clip):
+                clip = clip.detach().cpu().numpy()
+            else:
+                clip = np.asarray(clip)
+
+            assert clip.shape == (self.num_features,), f"clip must have shape ({self.num_features},), got {clip.shape}"
+
+            vec = np.minimum(vec, clip)
+
+        return vec #returns as numpy
  
     #electrode-space (n_chns, F) -> image-space (H, W, F); source is irrelevant,
     #vectors may come from features or from a constructed data field
@@ -582,7 +625,7 @@ class EEGEnv:
     #declared in a simulated env, derived from the declared toggles in a source env
     @property
     def num_features(self):
-        return self._declared_features if self.is_general else self._feature_field.num_features
+        return len(self._declared_features) if self.is_general else self._feature_field.num_features
  
     #-------- signal --------
     @property

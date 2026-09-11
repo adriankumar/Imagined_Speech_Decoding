@@ -1,6 +1,7 @@
 from .eeg_features import (window_size_from_seconds, 
                            compute_mean, compute_median, compute_iqr, 
-                           hjorth_mobility, hjorth_complexity)
+                           hjorth_mobility, hjorth_complexity, 
+                           power_spectrum, relative_band_power, spectral_entropy)
 
 from .electrode_processing import (lowercase_key, lookup_montage, build_chn_name_order,
                                    classify_chns, get_3d_pos, get_2d_pos)

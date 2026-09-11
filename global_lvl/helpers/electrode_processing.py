@@ -38,6 +38,7 @@ def classify_chns(montage, original_chns, printout=False):
 
     return resolved, excluded #list
 
+#get_positions()['ch_pos'] returns a dict like {'Fpz': array([x, y, z]), 'AFz': array([x, y, z]), ...}
 def _lookup_positions(chn_pos, names):
     return np.array([chn_pos[name] for name in names])  #(len(names), 3)
 

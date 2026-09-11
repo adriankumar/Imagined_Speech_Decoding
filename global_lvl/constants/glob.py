@@ -10,8 +10,18 @@ def _get_built_in_channels():
 
 MNE_MONTAGES = _get_built_in_channels()
 
-#current existing feature name
-FEATURE_NAMES = ["mean", "median", "iqr", "mobility", "complexity"]
+#canonical eeg bands in hz, low inclusive and high exclusive except the last
+FREQ_BANDS = {"delta": (1.0, 4.0), "theta": (4.0, 8.0), "alpha": (8.0, 13.0),
+              "beta": (13.0, 30.0), "gamma": (30.0, 45.0)}
+
+#band features share a computation path and each needs sfreq to build its bin mask
+BAND_FEATURES = ("delta", "theta", "alpha", "beta", "gamma")
+
+#everything derived from the periodogram, entropy needs no frequency labels but shares the fft
+SPECTRAL_FEATURES = BAND_FEATURES + ("entropy",)
+
+#order of F, time-domain first then spectral
+FEATURE_NAMES = ("mean", "median", "iqr", "mobility", "complexity") + SPECTRAL_FEATURES
 
 SOLVER_TYPES = ["B=I", "B=diag"]
 
@@ -21,7 +31,10 @@ MONTAGE = "standard_1005" #densest reference dictionary; 10-20 and 10-10 names a
 #iqr and median dominate in scale making learning harder, 
 #they may need to be scaled down rather than mobility and complexity
 FEATURE_TOGGLES = {"mean": False, "median": False, "iqr": False, 
-                   "mobility": True, "complexity": True} 
+                   "mobility": True, "complexity": True, 
+                   #dimless spectral-based
+                   "entropy": False, "delta": False, "theta": False, 
+                   "alpha": False, "beta": False, "gamma": False} 
 
 L = 9 
 NUM_SCHNS = (L+1)**2 #number of simulated channels

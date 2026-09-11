@@ -1,16 +1,22 @@
-from ..constants import FEATURE_NAMES
-from ..helpers import (compute_mean, compute_median, compute_iqr, 
-                       hjorth_complexity, hjorth_mobility)
+from ..constants import FREQ_BANDS, FEATURE_NAMES, SPECTRAL_FEATURES, BAND_FEATURES
+from ..helpers import (compute_mean, compute_median, compute_iqr,
+                       hjorth_complexity, hjorth_mobility,
+                       power_spectrum, relative_band_power, spectral_entropy)
 
 import numpy as np
 
 class FeatureField:
-    def __init__(self, channels_order=None, feature_toggles=None, reference=None):
+    def __init__(self, channels_order=None, feature_toggles=None, reference=None, sfreq=None):
         self._feat_fns = {"mean": compute_mean, "median": compute_median, "iqr": compute_iqr,
-                          "mobility": hjorth_mobility, "complexity": hjorth_complexity}
+                          "mobility": hjorth_mobility, "complexity": hjorth_complexity,
+                          "entropy": spectral_entropy}
+
+        #band features share one function, the band name selects the mask
+        for band in FREQ_BANDS:
+            self._feat_fns[band] = relative_band_power
 
         assert channels_order is not None, "FeatureField requires a channel order list from the electrode-sim"
-        self._chns_order = channels_order 
+        self._chns_order = channels_order
 
         #declared toggles fix F for this field and never mutate after construction
         self._declared = {n: True for n in FEATURE_NAMES}
@@ -18,6 +24,12 @@ class FeatureField:
             self._declared.update(self._checked(feature_toggles))
 
         assert len(self.toggled_features) >= 1, "Must have at least one feature toggled"
+
+        #band masks are built from the frequency of each fft bin, so cant exist without sfreq
+        #declared at construction
+        assert sfreq is None or sfreq > 0, f"sfreq must be positive, got {sfreq}"
+        assert sfreq is not None or not self._toggled_bands, f"band features {self._toggled_bands} require sfreq"
+        self._sfreq = sfreq
 
         #re-referencing is applied after the channel slice,
         assert reference in (None, "average"), f"reference must be None or 'average', got {reference}"
@@ -33,9 +45,30 @@ class FeatureField:
         if not ft_toggles:
             return self._declared
 
-        toggles = dict(self._declared)
+        toggles = dict(self._declared) #copy
         toggles.update(self._checked(ft_toggles))
         return toggles
+
+    #a band needs at least one fft bin inside it, resolution is sfreq / timepoints
+    def _assert_band_resolution(self, n_time, fn_names):
+        resolution = self._sfreq / n_time
+
+        for name in fn_names:
+            if name in BAND_FEATURES:
+                low, high = FREQ_BANDS[name]
+                assert resolution <= (high - low), (
+                    f"{name} spans {high - low}hz but resolution is {resolution:.2f}hz, "
+                    f"window of {n_time} samples at {self._sfreq}hz is too short")
+
+    #spectral features share one periodogram, computed only when one of them is toggled
+    def _compute_feature(self, name, window, power, freqs):
+        if name in BAND_FEATURES:
+            return self._feat_fns[name](power, freqs, name)
+
+        if name in SPECTRAL_FEATURES:
+            return self._feat_fns[name](power, freqs)
+
+        return self._feat_fns[name](window)
 
     #takes window of nchns x timepoints and returns nchns x F, where each F is a vector
     #ft_toggles is for diagnostics only- F will not match num_features when it is used
@@ -51,14 +84,28 @@ class FeatureField:
         if self._reference == "average":
             window = window - window.mean(axis=-2, keepdims=True)
 
-        #window.shape[-1] >= 3 asserted because complexity needs enough time samples 
+        #window.shape[-1] >= 3 asserted because complexity needs enough time samples
         #to take a second derivative
         if "complexity" in fn_names:
             assert window.shape[-1] >= 3, f"window needs >= 3 samples for hjorth complexity, got {window.shape[-1]}"
 
-        return np.stack([self._feat_fns[n](window) for n in fn_names], axis=-1) #n_chns x F
+        #diagnostic toggles can turn a band on for a field built without sfreq
+        spectral = [n for n in fn_names if n in SPECTRAL_FEATURES]
+        assert not spectral or self._sfreq is not None, f"spectral features {spectral} require sfreq"
 
-    @property 
+        power, freqs = (None, None)
+        if spectral:
+            self._assert_band_resolution(window.shape[-1], fn_names)
+            power, freqs = power_spectrum(window, self._sfreq) #once for every spectral feature
+
+        return np.stack([self._compute_feature(n, window, power, freqs) for n in fn_names], axis=-1) #n_chns x F
+
+    #bands declared on this field, checked against sfreq at construction
+    @property
+    def _toggled_bands(self):
+        return [n for n in BAND_FEATURES if self._declared[n]]
+
+    @property
     def toggled_features(self):
         return [n for n in FEATURE_NAMES if self._declared[n]]
 
@@ -74,3 +121,7 @@ class FeatureField:
     @property
     def reference(self):
         return self._reference
+
+    @property
+    def sfreq(self):
+        return self._sfreq
